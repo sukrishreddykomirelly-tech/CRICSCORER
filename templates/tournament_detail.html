@@ -1,0 +1,161 @@
+<!-- tournament_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ tourney.info.name }} - Point Table &amp; Stats{% endblock %}
+
+{% block content %}
+<div style="display:flex; flex-direction:column; gap:2rem;">
+    <!-- Header Details -->
+    <div class="premium-card" style="position:relative;">
+        <h1 class="hero-title" style="font-size: 2.2rem; margin-bottom: 0.5rem; letter-spacing: -0.5px;">{{ tourney.info.name }}</h1>
+        <p class="muted" style="font-size:0.9rem;"><i class="fa-solid fa-trophy text-gold"></i> Tournament League Standings &amp; Analytics</p>
+    </div>
+
+    <!-- Points Table Standings -->
+    <div class="premium-card">
+        <h3 class="card-title"><i class="fa-solid fa-list-ol text-emerald"></i> Points Table Standings</h3>
+        <div class="table-responsive">
+            <table class="scorecard-table">
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Team</th>
+                        <th class="num">Played</th>
+                        <th class="num">Won</th>
+                        <th class="num">Lost</th>
+                        <th class="num">Tied</th>
+                        <th class="num">NR</th>
+                        <th class="num">Pts</th>
+                        <th class="num">NRR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if tourney.points_table %}
+                        {% for row in tourney.points_table %}
+                            <tr class="{% if loop.index <= 4 %}total-row{% endif %}" style="{% if loop.index <= 4 %}background: rgba(16, 185, 129, 0.02); border-bottom: 1px solid var(--border-card);{% endif %}">
+                                <td class="bold">{{ loop.index }}</td>
+                                <td class="bold">
+                                    <a href="{{ url_for('team_profile', team_id=row.team_id) }}" style="display:flex; align-items:center; gap:0.5rem;">
+                                        <img src="{{ row.logo_url }}" alt="logo" style="width: 1.5rem; height: 1.5rem; border-radius: 50%;">
+                                        <span>{{ row.name }}</span>
+                                    </a>
+                                </td>
+                                <td class="num bold">{{ row.played }}</td>
+                                <td class="num text-emerald">{{ row.won }}</td>
+                                <td class="num text-danger">{{ row.lost }}</td>
+                                <td class="num text-gold">{{ row.tied }}</td>
+                                <td class="num muted">{{ row.nr }}</td>
+                                <td class="num bold highlight" style="font-size:1.05rem;">{{ row.points }}</td>
+                                <td class="num bold {% if row.nrr >= 0 %}text-emerald{% else %}text-danger{% endif %}">
+                                    {% if row.nrr >= 0 %}+{% endif %}{{ row.nrr }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="muted" style="text-align:center;">No teams registered in the points table yet.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Leaderboards Section (Top run scorer & Top wicket taker) -->
+    <div class="scoring-grid">
+        <!-- Batting Leaderboard -->
+        <div class="premium-card">
+            <h3 class="card-title" style="border-color: var(--accent-emerald);"><i class="fa-solid fa-crown text-gold"></i> Top Run Scorers</h3>
+            {% if tourney.top_scorers %}
+                <div class="leaderboard-list">
+                    {% for p in tourney.top_scorers %}
+                        <div class="leaderboard-item">
+                            <div class="leaderboard-player-info">
+                                <span class="bold muted" style="min-width: 20px;">#{{ loop.index }}</span>
+                                <img src="{{ p.avatar_url }}" alt="avatar" class="leaderboard-avatar">
+                                <div>
+                                    <span class="leaderboard-name"><a href="{{ url_for('player_profile', player_id=p.id) }}" class="highlight">{{ p.name }}</a></span>
+                                    <div class="leaderboard-sub">{{ p.team_name }}</div>
+                                </div>
+                            </div>
+                            <div class="leaderboard-value">{{ p.total_runs }} runs <span class="muted" style="font-size: 0.75rem;">({{ p.innings_batted }} inn)</span></div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted">No stats recorded yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Bowling Leaderboard -->
+        <div class="premium-card">
+            <h3 class="card-title" style="border-color: var(--accent-indigo);"><i class="fa-solid fa-bullseye text-indigo"></i> Top Wicket Takers</h3>
+            {% if tourney.top_bowlers %}
+                <div class="leaderboard-list">
+                    {% for p in tourney.top_bowlers %}
+                        <div class="leaderboard-item">
+                            <div class="leaderboard-player-info">
+                                <span class="bold muted" style="min-width: 20px;">#{{ loop.index }}</span>
+                                <img src="{{ p.avatar_url }}" alt="avatar" class="leaderboard-avatar">
+                                <div>
+                                    <span class="leaderboard-name"><a href="{{ url_for('player_profile', player_id=p.id) }}" class="highlight">{{ p.name }}</a></span>
+                                    <div class="leaderboard-sub">{{ p.team_name }}</div>
+                                </div>
+                            </div>
+                            <div class="leaderboard-value" style="color:var(--accent-indigo);">{{ p.total_wickets }} wkts</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted">No stats recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Fixtures & Results -->
+    <div class="premium-card">
+        <h3 class="card-title"><i class="fa-solid fa-calendar-alt text-indigo"></i> Tournament Matches &amp; Fixtures</h3>
+        {% if tourney.fixtures %}
+            <div class="match-card-grid" style="grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));">
+                {% for m in tourney.fixtures %}
+                    <div class="match-card">
+                        <span class="match-card-badge {% if m.status == 'live' %}badge-live{% else %}badge-completed{% endif %}">{{ m.status | upper }}</span>
+                        <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 0.5rem;">
+                            <i class="fa-solid fa-map-marker-alt"></i> {{ m.ground }} | {{ m.match_date }}
+                        </div>
+                        <div class="match-card-teams">
+                            <div class="team-row">
+                                <div class="team-info">
+                                    <img src="{{ m.team1_logo }}" alt="logo" class="team-logo">
+                                    <span class="team-name">{{ m.team1_name }}</span>
+                                </div>
+                            </div>
+                            <div class="team-row">
+                                <div class="team-info">
+                                    <img src="{{ m.team2_logo }}" alt="logo" class="team-logo">
+                                    <span class="team-name">{{ m.team2_name }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="match-card-footer">
+                            <span class="match-result-text">{% if m.result_margin %}{{ m.result_margin | upper }}{% else %}{{ m.status | upper }}{% endif %}</span>
+                            <div style="display:flex; gap:0.5rem;">
+                                <a href="{{ url_for('match_view', match_id=m.id) }}" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                    Scorecard
+                                </a>
+                                {% if m.status == 'live' %}
+                                    <a href="{{ url_for('match_scoring_console', match_id=m.id) }}" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                        Score
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No matches scheduled for this tournament yet. <a href="{{ url_for('match_create') }}" class="highlight">Create a match</a> and link it to this tournament.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+<!-- team_create.html -->
+{% extends "base.html" %}
+
+{% block title %}Create Team - CricScorer{% endblock %}
+
+{% block content %}
+<div class="premium-card" style="max-width: 650px; margin: 2rem auto;">
+    <h2 class="card-title"><i class="fa-solid fa-shield-plus highlight"></i> Create New Cricket Team</h2>
+    
+    <form action="{{ url_for('team_create') }}" method="POST">
+        <div class="form-group">
+            <label for="name">Team Name</label>
+            <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Apex Titans" required>
+        </div>
+        
+        <div class="form-group">
+            <label style="margin-bottom:0.75rem;">Select Squad Players (Add to Roster)</label>
+            <p class="muted" style="font-size: 0.8rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-info-circle"></i> Selected players will be available for playing XI squads in matches.</p>
+            
+            <div class="squad-selection-card" style="height: 350px;">
+                {% if all_players %}
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+                        {% for p in all_players %}
+                            <label class="squad-checkbox-item">
+                                <input type="checkbox" name="players" value="{{ p.id }}">
+                                <span>{{ p.name }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="muted">No players available in the database. First <a href="{{ url_for('player_create') }}" class="highlight">create players</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div style="margin-top: 2rem; display:flex; gap:1rem;">
+            <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa-solid fa-save"></i> Save Team</button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline" style="flex:1; text-align:center;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

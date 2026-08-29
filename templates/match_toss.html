@@ -1,0 +1,52 @@
+<!-- match_toss.html -->
+{% extends "base.html" %}
+
+{% block title %}Conduct Toss - CricScorer{% endblock %}
+
+{% block content %}
+<div class="premium-card" style="max-width: 500px; margin: 2rem auto;">
+    <h2 class="card-title"><i class="fa-solid fa-coins highlight"></i> Conduct Match Toss</h2>
+    
+    <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-card); padding-bottom: 1rem;">
+        <p class="muted" style="font-size:0.9rem; margin-bottom: 0.25rem;">Match Setup Completed</p>
+        <h3 style="font-size:1.2rem;">{{ t1_name }} <span class="muted" style="font-size:0.9rem;">vs</span> {{ t2_name }}</h3>
+        <p class="muted" style="font-size:0.85rem;"><i class="fa-solid fa-map-marker-alt"></i> {{ match.ground }} | {{ match.match_format }}</p>
+    </div>
+
+    <form action="{{ url_for('match_toss', match_id=match.id) }}" method="POST">
+        <!-- Toss Winner Selection -->
+        <div class="form-group">
+            <label>Who Won the Toss?</label>
+            <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                <label class="squad-checkbox-item" style="padding:0.75rem; border:1px solid var(--border-card); display:flex; justify-content:space-between;">
+                    <span>{{ t1_name }}</span>
+                    <input type="radio" name="toss_winner" value="{{ t1_id }}" required style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-emerald);">
+                </label>
+                <label class="squad-checkbox-item" style="padding:0.75rem; border:1px solid var(--border-card); display:flex; justify-content:space-between;">
+                    <span>{{ t2_name }}</span>
+                    <input type="radio" name="toss_winner" value="{{ t2_id }}" required style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-emerald);">
+                </label>
+            </div>
+        </div>
+
+        <!-- Toss Decision -->
+        <div class="form-group" style="margin-top: 1.5rem;">
+            <label>Toss Decision</label>
+            <div style="display:flex; gap:1rem; margin-top:0.5rem;">
+                <label class="squad-checkbox-item" style="flex:1; padding:0.75rem; border:1px solid var(--border-card); justify-content:center; gap:0.5rem;">
+                    <input type="radio" name="toss_decision" value="bat" required style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-emerald);">
+                    <span>BAT FIRST</span>
+                </label>
+                <label class="squad-checkbox-item" style="flex:1; padding:0.75rem; border:1px solid var(--border-card); justify-content:center; gap:0.5rem;">
+                    <input type="radio" name="toss_decision" value="bowl" required style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-emerald);">
+                    <span>BOWL FIRST</span>
+                </label>
+            </div>
+        </div>
+        
+        <div style="margin-top: 2rem; display:flex; gap:1rem;">
+            <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa-solid fa-play"></i> Save &amp; Select Openers</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

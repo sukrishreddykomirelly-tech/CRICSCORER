@@ -1,0 +1,183 @@
+<!-- player_profile.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ p.info.name }} - Player Profile &amp; Stats{% endblock %}
+
+{% block content %}
+<div style="display:flex; flex-direction:column; gap:2rem;">
+    <!-- Profile Card Header -->
+    <div class="premium-card" style="display:flex; gap:2rem; align-items:center; flex-wrap:wrap;">
+        <img src="{{ p.info.avatar_url }}" alt="avatar" style="width: 6rem; height: 6rem; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px solid var(--accent-indigo); padding: 5px;">
+        
+        <div style="flex:1;">
+            <h1 class="hero-title" style="font-size: 2.2rem; margin-bottom: 0.5rem; letter-spacing: -0.5px;">{{ p.info.name }}</h1>
+            <div style="display:flex; gap:1.5rem; flex-wrap:wrap; font-size: 0.95rem; color:var(--text-secondary);">
+                <span><i class="fa-solid fa-batting-glove text-emerald"></i> Batting: <span class="bold text-primary">{{ p.info.batting_style }}</span></span>
+                <span><i class="fa-solid fa-baseball text-indigo"></i> Bowling: <span class="bold text-primary">{{ p.info.bowling_style }}</span></span>
+                {% if p.info.is_keeper %}
+                    <span><i class="fa-solid fa-hands-gloves text-gold"></i> Role: <span class="bold text-primary">Wicketkeeper</span></span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:0.5rem;">
+            {% for t in p.teams %}
+                <a href="{{ url_for('team_profile', team_id=t.id) }}" style="display:flex; align-items:center; gap:0.4rem; background:rgba(255,255,255,0.05); border:1px solid var(--border-card); padding: 0.4rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <img src="{{ t.logo_url }}" alt="logo" style="width: 1.2rem; height: 1.2rem;">
+                    <span>{{ t.name }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Career Statistics -->
+    <div class="scoring-grid">
+        <!-- Batting Stats Card -->
+        <div class="premium-card">
+            <h3 class="card-title" style="border-color: var(--accent-emerald);"><i class="fa-solid fa-gavel text-emerald"></i> Batting Career Stats</h3>
+            <div class="table-responsive">
+                <table class="scorecard-table" style="font-size:0.95rem; margin-bottom:0;">
+                    <tr>
+                        <td class="bold">Matches / Innings</td>
+                        <td class="num bold">{{ p.batting.matches }} / {{ p.batting.innings }}</td>
+                        <td class="bold">Runs</td>
+                        <td class="num bold highlight" style="font-size:1.1rem;">{{ p.batting.runs }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bold">Balls Faced</td>
+                        <td class="num">{{ p.batting.balls }}</td>
+                        <td class="bold">Highest Score</td>
+                        <td class="num bold">{{ p.batting.high_score }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bold">Batting Avg</td>
+                        <td class="num bold">{{ p.batting.average }}</td>
+                        <td class="bold">Strike Rate</td>
+                        <td class="num bold highlight">{{ p.batting.strike_rate }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bold">Fours / Sixes</td>
+                        <td class="num">{{ p.batting.fours }} / {{ p.batting.sixes }}</td>
+                        <td class="bold">Not Outs / Ducks</td>
+                        <td class="num">{{ p.batting.not_outs }} / {{ p.batting.ducks }}</td>
+                    </tr>
+                    <tr style="background: rgba(255,255,255,0.01);">
+                        <td class="bold">100s / 50s / 30s</td>
+                        <td class="num bold" colspan="3" style="text-align:right;">
+                            <span class="text-danger">{{ p.batting.hundreds }}</span><span class="muted" style="margin:0 4px;">x100</span> | 
+                            <span class="highlight">{{ p.batting.fifties }}</span><span class="muted" style="margin:0 4px;">x50</span> | 
+                            <span class="bold">{{ p.batting.thirties }}</span><span class="muted" style="margin:0 4px;">x30</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Bowling Stats Card -->
+        <div class="premium-card">
+            <h3 class="card-title" style="border-color: var(--accent-indigo);"><i class="fa-solid fa-baseball text-indigo"></i> Bowling Career Stats</h3>
+            <div class="table-responsive">
+                <table class="scorecard-table" style="font-size:0.95rem; margin-bottom:0;">
+                    <tr>
+                        <td class="bold">Innings Bowled</td>
+                        <td class="num bold">{{ p.bowling.innings }}</td>
+                        <td class="bold">Wickets</td>
+                        <td class="num bold highlight" style="font-size:1.1rem;">{{ p.bowling.wickets }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bold">Overs (Balls)</td>
+                        <td class="num">{{ p.bowling.overs }} ({{ p.bowling.balls }})</td>
+                        <td class="bold">Runs Conceded</td>
+                        <td class="num">{{ p.bowling.runs_conceded }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bold">Bowling Avg</td>
+                        <td class="num bold">{{ p.bowling.average }}</td>
+                        <td class="bold">Economy</td>
+                        <td class="num bold highlight">{{ p.bowling.economy }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bold">Best Bowling</td>
+                        <td class="num bold">{{ p.bowling.best_bowling }}</td>
+                        <td class="bold">Maiden Overs</td>
+                        <td class="num bold">{{ p.bowling.maidens }}</td>
+                    </tr>
+                    <tr style="background: rgba(255,255,255,0.01);">
+                        <td class="bold">3w / 5w Hauls</td>
+                        <td class="num bold" colspan="3" style="text-align:right;">
+                            <span>{{ p.bowling.three_wickets }}</span><span class="muted" style="margin:0 4px;">x3w</span> | 
+                            <span class="highlight">{{ p.bowling.five_wickets }}</span><span class="muted" style="margin:0 4px;">x5w</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Fielding & Recent Form -->
+    <div class="scoring-grid" style="grid-template-columns: 1fr;">
+        <!-- Recent Match Form -->
+        <div class="premium-card">
+            <h3 class="card-title"><i class="fa-solid fa-chart-line"></i> Recent Match Performances</h3>
+            {% if p.recent %}
+                <div class="table-responsive">
+                    <table class="scorecard-table">
+                        <thead>
+                            <tr>
+                                <th>Match</th>
+                                <th>Batting Runs</th>
+                                <th>Balls Faced</th>
+                                <th>Out/NO</th>
+                                <th>Bowling Wkts</th>
+                                <th>Bowling Runs</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in p.recent %}
+                                <tr>
+                                    <td class="bold">
+                                        <a href="{{ url_for('match_view', match_id=r.id) }}" class="highlight">
+                                            {{ r.team1 }} vs {{ r.team2 }}
+                                        </a>
+                                    </td>
+                                    <td class="num bold">{% if r.batter_runs is not none %}{{ r.batter_runs }}{% else %}-{% endif %}</td>
+                                    <td class="num">{% if r.batter_balls is not none %}{{ r.batter_balls }}{% else %}-{% endif %}</td>
+                                    <td class="muted">
+                                        {% if r.batter_runs is not none %}
+                                            {% if r.was_dismissed %}Out{% else %}Not Out{% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="num bold highlight">{% if r.bowler_wkts is not none %}{{ r.bowler_wkts }}{% else %}-{% endif %}</td>
+                                    <td class="num">{% if r.bowler_runs is not none %}{{ r.bowler_runs }}{% else %}-{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="muted">No matches played yet.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Fielding Stats summary inside a small bar -->
+        <div class="premium-card" style="display:flex; justify-content:space-around; align-items:center; flex-wrap:wrap; gap:1.5rem; text-align:center;">
+            <div>
+                <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent-emerald);">{{ p.fielding.catches }}</div>
+                <div class="muted" style="font-size: 0.8rem; text-transform: uppercase;">Catches</div>
+            </div>
+            <div style="width: 1px; height: 40px; background: var(--border-card);"></div>
+            <div>
+                <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent-gold);">{{ p.fielding.stumpings }}</div>
+                <div class="muted" style="font-size: 0.8rem; text-transform: uppercase;">Stumpings</div>
+            </div>
+            <div style="width: 1px; height: 40px; background: var(--border-card);"></div>
+            <div>
+                <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent-indigo);">{{ p.fielding.run_outs }}</div>
+                <div class="muted" style="font-size: 0.8rem; text-transform: uppercase;">Run Outs</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

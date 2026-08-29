@@ -1,0 +1,200 @@
+<!-- index.html -->
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CricScorer Cricket Scoring{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section" style="background-image: linear-gradient(rgba(11, 15, 25, 0.7), rgba(11, 15, 25, 0.95)), url('{{ url_for('static', filename='images/banner.jpg') }}'); background-size: cover; background-position: center;">
+    <div class="hero-content">
+        <h1 class="hero-title">Serious Cricket Scoring &amp; Statistics</h1>
+        <p class="hero-subtitle">Record ball-by-ball actions, check real-time live scoreboards, compute dynamic player averages, and manage tournaments with automatic point tables.</p>
+        <div class="hero-btns">
+            <a href="{{ url_for('match_create') }}" class="btn btn-primary"><i class="fa-solid fa-circle-play"></i> Start Scoring Match</a>
+            <a href="{{ url_for('tournaments_list') }}" class="btn btn-secondary"><i class="fa-solid fa-trophy"></i> Tournaments</a>
+        </div>
+    </div>
+</div>
+
+<div class="scoring-grid">
+    <!-- Left Column: Matches -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        
+        <!-- Live Matches -->
+        <div>
+            <h2 class="card-title"><i class="fa-solid fa-broadcast-tower text-danger animation-pulse" style="animation: pulse 2s infinite;"></i> Live Matches</h2>
+            {% if live_matches %}
+                <div class="match-card-grid">
+                    {% for m in live_matches %}
+                        <div class="match-card live-match">
+                            <span class="match-card-badge badge-live">Live</span>
+                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 0.5rem;">
+                                <i class="fa-solid fa-map-marker-alt"></i> {{ m.ground }} | {{ m.match_format }}
+                            </div>
+                            
+                            <div class="match-card-teams">
+                                <div class="team-row">
+                                    <div class="team-info">
+                                        <img src="{{ m.team1_logo }}" alt="Logo" class="team-logo">
+                                        <span class="team-name">{{ m.team1_name }}</span>
+                                    </div>
+                                    <div class="team-score">
+                                        {% if m.i1_runs is not none %}
+                                            {{ m.i1_runs }}/{{ m.i1_wkts }} <span class="team-score-wkts">({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="team-row">
+                                    <div class="team-info">
+                                        <img src="{{ m.team2_logo }}" alt="Logo" class="team-logo">
+                                        <span class="team-name">{{ m.team2_name }}</span>
+                                    </div>
+                                    <div class="team-score">
+                                        {% if m.i2_runs is not none %}
+                                            {{ m.i2_runs }}/{{ m.i2_wkts }} <span class="team-score-wkts">({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</span>
+                                        {% else %}
+                                            -
+                                        <!-- If toss is done but innings not started yet -->
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="match-card-footer">
+                                <span>Target: {% if m.i1_runs is not none %}{{ m.i1_runs + 1 }}{% else %}-{% endif %}</span>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <a href="{{ url_for('match_view', match_id=m.id) }}" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                        <i class="fa-solid fa-eye"></i> View Live
+                                    </a>
+                                    <a href="{{ url_for('match_scoring_console', match_id=m.id) }}" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: var(--accent-emerald);">
+                                        <i class="fa-solid fa-keyboard"></i> Score
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted" style="background:rgba(255,255,255,0.02); border: 1px solid var(--border-card); padding: 1.5rem; border-radius: var(--radius-md); text-align:center;">No live matches running right now. <a href="{{ url_for('match_create') }}" class="highlight">Create one</a> to start.</p>
+            {% endif %}
+        </div>
+
+        <!-- Recent Matches -->
+        <div>
+            <h2 class="card-title"><i class="fa-solid fa-history"></i> Recent Completed Matches</h2>
+            {% if recent_matches %}
+                <div class="match-card-grid" style="grid-template-columns: 1fr;">
+                    {% for m in recent_matches %}
+                        <div class="match-card">
+                            <span class="match-card-badge badge-completed">Finished</span>
+                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 0.5rem;">
+                                <i class="fa-solid fa-calendar"></i> {{ m.match_date }} | {{ m.ground }} | {{ m.match_format }}
+                            </div>
+                            
+                            <div class="match-card-teams" style="flex-direction:row; justify-content:space-between; gap:2rem; flex-wrap:wrap; align-items:center;">
+                                <div style="display:flex; flex-direction:column; gap:0.5rem; flex: 1;">
+                                    <div class="team-row">
+                                        <div class="team-info">
+                                            <img src="{{ m.team1_logo }}" alt="Logo" class="team-logo">
+                                            <span class="team-name">{{ m.team1_name }}</span>
+                                        </div>
+                                        <span class="team-score">
+                                            {% if m.i1_runs is not none %}{{ m.i1_runs }}/{{ m.i1_wkts }} <span class="team-score-wkts">({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</span>{% else %}-{% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="team-row">
+                                        <div class="team-info">
+                                            <img src="{{ m.team2_logo }}" alt="Logo" class="team-logo">
+                                            <span class="team-name">{{ m.team2_name }}</span>
+                                        </div>
+                                        <span class="team-score">
+                                            {% if m.i2_runs is not none %}{{ m.i2_runs }}/{{ m.i2_wkts }} <span class="team-score-wkts">({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</span>{% else %}-{% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.5rem;">
+                                    <div class="match-result-text">{{ m.result_margin | upper }}</div>
+                                    <a href="{{ url_for('match_view', match_id=m.id) }}" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                        Full Scorecard <i class="fa-solid fa-arrow-right"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted">No matches played yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Profiles & Fast Access -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        
+        <!-- Directory Lists -->
+        <div class="premium-card">
+            <h3 class="card-title"><i class="fa-solid fa-users"></i> Top Players</h3>
+            <div class="leaderboard-list">
+                {% for p in players %}
+                    <a href="{{ url_for('player_profile', player_id=p.id) }}" class="leaderboard-item">
+                        <div class="leaderboard-player-info">
+                            <img src="{{ p.avatar_url }}" alt="avatar" class="leaderboard-avatar">
+                            <div>
+                                <span class="leaderboard-name">{{ p.name }}</span>
+                                <div class="leaderboard-sub">{{ p.batting_style }}</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right muted"></i>
+                    </a>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('player_create') }}" class="btn btn-outline btn-block" style="width:100%; margin-top: 1rem; font-size: 0.85rem;">
+                <i class="fa-solid fa-user-plus"></i> Add New Player
+            </a>
+        </div>
+
+        <div class="premium-card">
+            <h3 class="card-title"><i class="fa-solid fa-shield-halved"></i> Active Teams</h3>
+            <div class="leaderboard-list">
+                {% for t in teams %}
+                    <a href="{{ url_for('team_profile', team_id=t.id) }}" class="leaderboard-item">
+                        <div class="leaderboard-player-info">
+                            <img src="{{ t.logo_url }}" alt="logo" class="leaderboard-avatar">
+                            <div>
+                                <span class="leaderboard-name">{{ t.name }}</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right muted"></i>
+                    </a>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('team_create') }}" class="btn btn-outline btn-block" style="width:100%; margin-top: 1rem; font-size: 0.85rem;">
+                <i class="fa-solid fa-shield-plus"></i> Create New Team
+            </a>
+        </div>
+        
+        <div class="premium-card">
+            <h3 class="card-title"><i class="fa-solid fa-trophy text-gold"></i> Tournaments</h3>
+            <div class="leaderboard-list">
+                {% for tourney in tournaments %}
+                    <a href="{{ url_for('tournament_detail', tournament_id=tourney.id) }}" class="leaderboard-item">
+                        <div class="leaderboard-player-info">
+                            <i class="fa-solid fa-award highlight" style="font-size: 1.2rem; padding: 0.25rem;"></i>
+                            <div>
+                                <span class="leaderboard-name">{{ tourney.name }}</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right muted"></i>
+                    </a>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('tournaments_list') }}" class="btn btn-outline btn-block" style="width:100%; margin-top: 1rem; font-size: 0.85rem;">
+                <i class="fa-solid fa-square-plus"></i> Create Tournament
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

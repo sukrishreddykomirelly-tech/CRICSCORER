@@ -1,0 +1,220 @@
+<!-- match_view.html -->
+{% extends "base.html" %}
+
+{% block title %}Live Scorecard &amp; Commentary - CricScorer{% endblock %}
+
+{% block head %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@keyframes slideIn {
+    from {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+}
+@keyframes progressTimer {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Match Details Header -->
+<div class="premium-card" style="margin-bottom: 1.5rem; position: relative;">
+    <span id="view-match-status" class="match-card-badge">Loading...</span>
+    
+    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
+        <span id="view-match-format">T20</span> | <span id="view-match-ground">Ground</span>
+    </div>
+    
+    <h2 style="font-size: 1.6rem; font-weight:800; margin-bottom: 0.5rem;">
+        <span id="header-team1">Team 1</span> <span class="muted" style="font-size:1.1rem; font-weight:400;">VS</span> <span id="header-team2">Team 2</span>
+    </h2>
+    
+    <div id="view-match-date" class="muted" style="font-size: 0.88rem; margin-bottom: 0.75rem;">Date &amp; Time</div>
+    
+    <div id="view-toss-details" class="muted" style="font-size: 0.9rem; border-top: 1px solid var(--border-card); padding-top: 0.75rem;">
+        Loading toss...
+    </div>
+    
+    <div id="view-match-result" class="match-result-text" style="font-size: 1.15rem; margin-top: 0.5rem; display:none;">
+        RESULT MARGIN
+    </div>
+</div>
+
+<!-- Live scoreboard panel (visible when match status is 'live') -->
+<div id="view-live-panel" class="premium-card" style="display:none; margin-bottom:1.5rem; border-color:var(--accent-emerald);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom: 1rem;">
+        <div>
+            <h3 id="view-live-team" class="bold" style="font-size: 1.3rem;">Batting Team</h3>
+            <h1 id="view-live-score" style="font-size: 3.2rem; font-weight:800; line-height:1; color:var(--text-primary);">0/0</h1>
+            <span id="view-live-overs" class="muted" style="font-size:1rem; font-weight:600;">(0.0 overs)</span>
+        </div>
+        
+        <div style="text-align:right; display:flex; flex-direction:column; gap:0.25rem;">
+            <div id="view-live-crr" class="bold highlight" style="font-size:1.1rem;">CRR: 0.00</div>
+            <div id="view-target-row" class="muted" style="font-size:0.9rem;">Target: -</div>
+        </div>
+    </div>
+
+    <!-- Chase Status Card (Second Innings only) -->
+    <div id="view-chase-status-card" class="premium-card" style="display:none; border-color:var(--accent-gold); margin-bottom: 1rem; padding: 0.75rem 1rem; background: rgba(212, 175, 55, 0.05); margin-top: 0.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+                <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-weight:700;">Target</span>
+                <div style="font-size:1.3rem; font-weight:800; color:var(--accent-gold); margin-top:0.15rem;" id="view-chase-target-val">-</div>
+            </div>
+            <div style="text-align:center;">
+                <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-weight:700;">Chase Requirement</span>
+                <div style="font-size:1.15rem; font-weight:700; color:var(--text-primary); margin-top:0.15rem;" id="view-chase-requirement-val">Need - runs off - balls</div>
+            </div>
+            <div style="text-align:right;">
+                <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-weight:700;">Required Rate</span>
+                <div style="font-size:1.3rem; font-weight:800; color:var(--accent-gold); margin-top:0.15rem;" id="view-chase-rrr-val">0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Crease Batters -->
+    <div class="crease-container" style="background: rgba(0, 0, 0, 0.2); border-color: rgba(255, 255, 255, 0.05); margin-bottom: 1rem;">
+        <!-- Striker -->
+        <div id="view-striker-row" class="crease-player-row" style="padding: 0.5rem;">
+            <div class="crease-player-info">
+                <span id="view-striker-name" class="bold" style="font-size:1rem;">Striker</span>
+            </div>
+            <div class="crease-player-stats">
+                <span id="view-striker-runs">0</span>
+                <span class="crease-player-sub">r (<span id="view-striker-balls">0</span>b)</span>
+                <span class="crease-player-sub" style="margin-left: 0.5rem;">4s:<span id="view-striker-fours">0</span> | 6s:<span id="view-striker-sixes">0</span> | SR:<span id="view-striker-sr">0.0</span></span>
+            </div>
+        </div>
+        
+        <!-- Non-Striker -->
+        <div id="view-nonstriker-row" class="crease-player-row" style="padding: 0.5rem;">
+            <div class="crease-player-info">
+                <span id="view-nonstriker-name" class="bold" style="font-size:1rem;">Non-Striker</span>
+            </div>
+            <div class="crease-player-stats">
+                <span id="view-nonstriker-runs">0</span>
+                <span class="crease-player-sub">r (<span id="view-nonstriker-balls">0</span>b)</span>
+                <span class="crease-player-sub" style="margin-left: 0.5rem;">4s:<span id="view-nonstriker-fours">0</span> | 6s:<span id="view-nonstriker-sixes">0</span> | SR:<span id="view-nonstriker-sr">0.0</span></span>
+            </div>
+        </div>
+
+        <!-- Bowler -->
+        <div id="view-bowler-row" class="crease-player-row" style="border-top: 1px solid rgba(255,255,255,0.05); padding: 0.75rem 0.5rem 0.25rem 0.5rem; margin-top:0.25rem;">
+            <div class="crease-player-info">
+                <span style="font-size:0.8rem; color:var(--text-secondary); text-transform:uppercase; margin-right: 0.5rem;">Bowler:</span>
+                <span id="view-bowler-name" class="bold" style="font-size:1rem; color:var(--accent-indigo);">Bowler</span>
+            </div>
+            <div class="crease-player-stats" style="font-size: 0.95rem;">
+                <span id="view-bowler-wickets" class="highlight">0</span>
+                <span class="crease-player-sub">w / <span id="view-bowler-runs">0</span>r</span>
+                <span class="crease-player-sub" style="margin-left: 0.5rem;">Overs: <span id="view-bowler-overs">0.0</span> (M:<span id="view-bowler-maidens">0</span>, Econ:<span id="view-bowler-econ">0.00</span>)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Over log bubbles -->
+    <div style="display:flex; align-items:center; gap:1rem; background:rgba(0,0,0,0.15); border:1px solid rgba(255,255,255,0.03); padding:0.6rem 1rem; border-radius: var(--radius-sm);">
+        <span class="bold text-secondary" style="font-size: 0.8rem; text-transform:uppercase;">This Over:</span>
+        <div id="view-over-balls" class="over-balls-list">
+            <!-- bubbles injected -->
+        </div>
+    </div>
+</div>
+
+<!-- Tabs Panel -->
+<div class="tab-container">
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="scorecard">Scorecard</button>
+        <button class="tab-btn" data-tab="commentary">Live Commentary</button>
+        <button class="tab-btn" data-tab="partnerships">Partnerships</button>
+        <button class="tab-btn" data-tab="analytics">Analytics</button>
+        <button class="tab-btn" data-tab="awards">Awards &amp; Impact</button>
+    </div>
+</div>
+
+<!-- Scorecard Tab Content -->
+<div id="tab-scorecard" class="tab-content active">
+    <p class="muted" style="text-align:center; padding: 2rem;">Loading scorecard...</p>
+</div>
+
+<!-- Commentary Tab Content -->
+<div id="tab-commentary" class="tab-content">
+    <p class="muted" style="text-align:center; padding: 2rem;">Loading commentary...</p>
+</div>
+
+<!-- Partnerships Tab Content -->
+<div id="tab-partnerships" class="tab-content">
+    <p class="muted" style="text-align:center; padding: 2rem;">Loading partnerships...</p>
+</div>
+
+<!-- Analytics Tab Content -->
+<div id="tab-analytics" class="tab-content">
+    <div style="display:flex; flex-direction:column; gap:2rem; padding: 1rem 0;">
+        <div class="premium-card">
+            <h3 class="card-title" style="font-size:1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-chart-line highlight"></i> Run Progression (Worm Chart)</h3>
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="wormChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="premium-card">
+            <h3 class="card-title" style="font-size:1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-chart-simple highlight"></i> Over-by-Over Runs &amp; Wickets (Manhattan Chart)</h3>
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="manhattanChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Awards Tab Content -->
+<div id="tab-awards" class="tab-content">
+    <div id="view-awards-container" style="display:flex; flex-direction:column; gap:1.5rem; padding: 1rem 0;">
+        <p class="muted" style="text-align:center; padding: 2rem;">Awards will be calculated here once play begins...</p>
+    </div>
+</div>
+<div id="career-stats-toast-container" style="position: fixed; bottom: 2rem; right: 2rem; z-index: 10000; display: flex; flex-direction: column; gap: 1rem; pointer-events: none;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const matchId = {{ match_id }};
+    
+    // Inject headers initially before SSE connection completes to make page load smooth
+    fetch(`/api/match/${matchId}/state`)
+        .then(res => res.json())
+        .then(state => {
+            document.getElementById("header-team1").innerText = state.team1_name;
+            document.getElementById("header-team2").innerText = state.team2_name;
+            document.getElementById("view-match-format").innerText = state.match_format;
+            document.getElementById("view-match-ground").innerText = state.ground;
+            document.getElementById("view-match-date").innerText = `${state.match_date} @ ${state.match_time}`;
+            
+            // Set header team titles in head block dynamically
+            document.title = `${state.team1_name} vs ${state.team2_name} - Live Scorecard`;
+        });
+</script>
+<script src="{{ url_for('static', filename='js/live.js') }}?v=1.4"></script>
+{% endblock %}

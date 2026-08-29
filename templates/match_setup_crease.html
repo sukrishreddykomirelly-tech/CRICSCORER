@@ -1,0 +1,68 @@
+<!-- match_setup_crease.html -->
+{% extends "base.html" %}
+
+{% block title %}Setup Crease - CricScorer{% endblock %}
+
+{% block content %}
+<div class="premium-card" style="max-width: 500px; margin: 2rem auto;">
+    <h2 class="card-title"><i class="fa-solid fa-gamepad highlight"></i> Setup Crease (Innings 1)</h2>
+    <p class="muted" style="margin-bottom: 1.5rem; font-size: 0.9rem;">Select the starting batsmen and bowler to begin scoring.</p>
+    
+    <form action="{{ url_for('match_setup_crease', match_id=match_id) }}" method="POST">
+        <!-- Striker Batter Selection -->
+        <div class="form-group">
+            <label for="striker-select">Opening Batter (Striker)</label>
+            <select id="striker-select" name="striker" class="form-control" required>
+                <option value="">Select striker...</option>
+                {% for b in batters %}
+                    <option value="{{ b.player_id }}">{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Non-Striker Batter Selection -->
+        <div class="form-group">
+            <label for="non-striker-select">Opening Batter (Non-Striker)</label>
+            <select id="non-striker-select" name="non_striker" class="form-control" required>
+                <option value="">Select non-striker...</option>
+                {% for b in batters %}
+                    <option value="{{ b.player_id }}">{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Opening Bowler Selection -->
+        <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border-card); padding-top: 1rem;">
+            <label for="bowler-select">Opening Bowler</label>
+            <select id="bowler-select" name="bowler" class="form-control" required>
+                <option value="">Select opening bowler...</option>
+                {% for b in bowlers %}
+                    <option value="{{ b.player_id }}">{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="margin-top: 2.5rem;">
+            <button type="submit" class="btn btn-primary" style="width:100%;"><i class="fa-solid fa-play"></i> Start Innings &amp; Score Match</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Prevent selecting the same batsman twice
+    const strikerSelect = document.getElementById("striker-select");
+    const nonStrikerSelect = document.getElementById("non-striker-select");
+    
+    const validateBatsmen = () => {
+        if (strikerSelect.value && nonStrikerSelect.value && strikerSelect.value === nonStrikerSelect.value) {
+            alert("Striker and Non-Striker must be different players!");
+            nonStrikerSelect.value = "";
+        }
+    };
+    
+    strikerSelect.addEventListener("change", validateBatsmen);
+    nonStrikerSelect.addEventListener("change", validateBatsmen);
+</script>
+{% endblock %}

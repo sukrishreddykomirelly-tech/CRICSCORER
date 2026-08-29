@@ -1,0 +1,50 @@
+<!-- player_create.html -->
+{% extends "base.html" %}
+
+{% block title %}Create Player - CricScorer{% endblock %}
+
+{% block content %}
+<div class="premium-card" style="max-width: 500px; margin: 2rem auto;">
+    <h2 class="card-title"><i class="fa-solid fa-user-plus highlight"></i> Create New Player</h2>
+    
+    <form action="{{ url_for('player_create') }}" method="POST">
+        <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Virat Kohli" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="batting_style">Batting Style</label>
+            <select id="batting_style" name="batting_style" class="form-control">
+                <option value="Right-hand bat">Right-hand bat</option>
+                <option value="Left-hand bat">Left-hand bat</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="bowling_style">Bowling Style</label>
+            <select id="bowling_style" name="bowling_style" class="form-control">
+                <option value="None">None (Pure Batter)</option>
+                <option value="Right-arm fast">Right-arm fast</option>
+                <option value="Right-arm fast-medium">Right-arm fast-medium</option>
+                <option value="Right-arm offbreak">Right-arm offbreak</option>
+                <option value="Right-arm legbreak">Right-arm legbreak</option>
+                <option value="Left-arm fast">Left-arm fast</option>
+                <option value="Left-arm fast-medium">Left-arm fast-medium</option>
+                <option value="Slow left-arm orthodox">Slow left-arm orthodox</option>
+                <option value="Left-arm chinaman">Left-arm chinaman</option>
+            </select>
+        </div>
+        
+        <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin-top: 1rem;">
+            <input type="checkbox" id="is_keeper" name="is_keeper" style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-emerald);">
+            <label for="is_keeper" style="margin-bottom:0; cursor:pointer;">Wicketkeeper Status</label>
+        </div>
+        
+        <div style="margin-top: 2rem; display:flex; gap:1rem;">
+            <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa-solid fa-save"></i> Save Player</button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline" style="flex:1; text-align:center;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

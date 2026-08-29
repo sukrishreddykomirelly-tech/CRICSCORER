@@ -1,0 +1,348 @@
+<!-- scoring.html -->
+{% extends "base.html" %}
+
+{% block title %}Scoring Console - CricScorer{% endblock %}
+
+{% block head %}
+<style>
+    /* Prevent default zoom on double tap for touch-friendly scoring */
+    button, .runs-btn, .extra-btn, .action-btn {
+        touch-action: manipulation;
+    }
+    
+    /* Make scorer full screen width on all devices */
+    .scoring-grid {
+        grid-template-columns: 1fr !important;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scoring-grid">
+    <!-- Left Panel: Scoreboard & Keypad Console -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        
+        <!-- Scoreboard Header Card -->
+        <div class="premium-card" style="text-align:center; padding:1.25rem 1rem;">
+            <div id="target-info" class="match-result-text" style="font-size: 1.15rem; margin-bottom: 0.5rem; display:none;">Target: -</div>
+            <h1 id="current-score" style="font-size: 2.8rem; font-weight:800; letter-spacing:-1px; line-height:1;">Loading...</h1>
+            <h3 id="current-overs" class="muted" style="font-weight:600; margin-top:0.25rem;">0.0 Overs</h3>
+            <div id="run-rates" class="muted" style="font-size: 0.9rem; margin-top:0.5rem;">CRR: 0.00</div>
+        </div>
+        
+        <!-- Chase Status Card (Second Innings only) -->
+        <div id="chase-status-card" class="premium-card" style="display:none; border-color:var(--accent-gold); margin-bottom: 1rem; padding: 0.75rem 1rem; background: rgba(212, 175, 55, 0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                <div>
+                    <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-weight:700;">Target</span>
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--accent-gold); margin-top:0.15rem;" id="chase-target-val">-</div>
+                </div>
+                <div style="text-align:center;">
+                    <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-weight:700;">Chase Requirement</span>
+                    <div style="font-size:1.15rem; font-weight:700; color:var(--text-primary); margin-top:0.15rem;" id="chase-requirement-val">Need - runs off - balls</div>
+                </div>
+                <div style="text-align:right;">
+                    <span style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; font-weight:700;">Required Rate</span>
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--accent-gold); margin-top:0.15rem;" id="chase-rrr-val">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Over Balls Log Bar -->
+        <div class="over-balls-container">
+            <span class="bold text-secondary" style="font-size: 0.85rem; text-transform:uppercase;">This Over:</span>
+            <div id="over-balls-list" class="over-balls-list">
+                <!-- Javascript will populate bubbles -->
+            </div>
+        </div>
+
+        <!-- Crease Status Card -->
+        <div id="crease-container" class="crease-container">
+            <!-- Striker Row -->
+            <div id="score-striker-row" class="crease-player-row" style="padding: 0.5rem; border-radius: 4px;">
+                <div class="crease-player-info">
+                    <span id="score-striker-name" class="bold" style="font-size:1.05rem;">Striker</span>
+                </div>
+                <div class="crease-player-stats">
+                    <span id="score-striker-runs">0</span>
+                    <span class="crease-player-sub">r (<span id="score-striker-balls">0</span>b)</span>
+                    <span class="crease-player-sub" style="margin-left: 0.5rem;">SR: <span id="score-striker-sr">0.0</span></span>
+                </div>
+            </div>
+            
+            <!-- Non-Striker Row -->
+            <div id="score-non-striker-row" class="crease-player-row" style="padding: 0.5rem; border-radius: 4px;">
+                <div class="crease-player-info">
+                    <span id="score-non-striker-name" class="bold" style="font-size:1.05rem;">Non-Striker</span>
+                </div>
+                <div class="crease-player-stats">
+                    <span id="score-non-striker-runs">0</span>
+                    <span class="crease-player-sub">r (<span id="score-non-striker-balls">0</span>b)</span>
+                    <span class="crease-player-sub" style="margin-left: 0.5rem;">SR: <span id="score-non-striker-sr">0.0</span></span>
+                </div>
+            </div>
+            
+            <!-- Swap Strike Button Row -->
+            <div style="display:flex; justify-content:flex-end; padding: 0.25rem 0.5rem; border-top: 1px solid rgba(255,255,255,0.03);">
+                <button id="btn-swap-batsmen" class="btn btn-outline" style="padding: 0.25rem 0.6rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                    <i class="fa-solid fa-arrows-up-down"></i> Swap Strike
+                </button>
+            </div>
+
+            <!-- Bowler Row -->
+            <div id="score-bowler-row" class="crease-player-row" style="border-top: 1px solid var(--border-card); padding: 0.75rem 0.5rem 0.25rem 0.5rem; margin-top:0.25rem;">
+                <div class="crease-player-info">
+                    <span style="font-size:0.8rem; color:var(--text-secondary); text-transform:uppercase; margin-right: 0.5rem;">Bowler:</span>
+                    <span id="score-bowler-name" class="bold" style="font-size:1.05rem; color:var(--accent-indigo);">Bowler</span>
+                </div>
+                <div class="crease-player-stats" style="font-size: 1rem;">
+                    <span id="score-bowler-wickets" class="highlight">0</span>
+                    <span class="crease-player-sub">w / <span id="score-bowler-runs">0</span>r</span>
+                    <span class="crease-player-sub" style="margin-left: 0.5rem;">Overs: <span id="score-bowler-overs">0.0</span> (M:<span id="score-bowler-maidens">0</span>, Econ:<span id="score-bowler-econ">0.00</span>)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scoring Console Controls -->
+        <div id="scoring-console-card" class="scoring-console-card">
+            <div class="scoring-controls">
+                
+                <!-- Extras row -->
+                <div class="extras-keypad">
+                    <button class="extra-btn" data-extra="wide">WIDE</button>
+                    <button class="extra-btn" data-extra="noball">NO BALL</button>
+                    <button class="extra-btn" data-extra="bye">BYE</button>
+                    <button class="extra-btn" data-extra="legbye">LEG BYE</button>
+                </div>
+                
+                <!-- Runs Keypad -->
+                <div class="runs-keypad">
+                    <button class="runs-btn" data-runs="0">0</button>
+                    <button class="runs-btn" data-runs="1">1</button>
+                    <button class="runs-btn" data-runs="2">2</button>
+                    <button class="runs-btn" data-runs="3">3</button>
+                    <button class="runs-btn boundary-4" data-runs="4">4</button>
+                    <button class="runs-btn boundary-6" data-runs="6">6</button>
+                    <button class="runs-btn" data-runs="5" style="font-size: 1.1rem;">5</button>
+                    <button class="runs-btn" data-runs="7" style="font-size: 1.1rem;">7</button>
+                </div>
+                
+                <!-- Bottom Wicket and Undo Controls -->
+                <div class="bottom-controls" style="grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
+                    <button id="btn-wicket" class="action-btn wicket" style="font-size: 0.85rem;"><i class="fa-solid fa-skull"></i> WICKET</button>
+                    <button id="btn-undo" class="action-btn undo" style="font-size: 0.85rem;"><i class="fa-solid fa-undo"></i> UNDO</button>
+                    <button id="btn-manage-squad" class="action-btn" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-color); display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.85rem; text-transform: uppercase; cursor: pointer;">
+                        <i class="fa-solid fa-users-gear" style="color: var(--accent-indigo);"></i> SQUAD
+                    </button>
+                    <a href="/match/{{ match_id }}" target="_blank" class="action-btn" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-color); display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; text-decoration: none; font-size: 0.85rem; text-transform: uppercase;">
+                        <i class="fa-solid fa-eye" style="color: var(--accent-emerald);"></i> VIEW
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Panel: Innings Transition & Match Completed states -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        
+        <!-- Innings Transition setup -->
+        <div id="innings-transition-container" class="premium-card" style="display:none; border-color:var(--accent-emerald);">
+            <h3 class="card-title text-emerald" style="border-bottom:none; margin-bottom:0.5rem;"><i class="fa-solid fa-exchange-alt"></i> Innings 1 Completed!</h3>
+            <p class="muted" style="font-size:0.9rem; margin-bottom: 1.5rem;">Set up the active crease for Innings 2 to continue.</p>
+            
+            <div class="form-group">
+                <label for="inn2-striker-select">Opening Batter (Striker)</label>
+                <select id="inn2-striker-select" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label for="inn2-non-striker-select">Opening Batter (Non-Striker)</label>
+                <select id="inn2-non-striker-select" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label for="inn2-bowler-select">Opening Bowler</label>
+                <select id="inn2-bowler-select" class="form-control"></select>
+            </div>
+            
+            <button id="btn-start-innings2" class="btn btn-primary" style="width:100%; margin-top: 1rem;"><i class="fa-solid fa-play"></i> Start Innings 2</button>
+        </div>
+
+        <!-- Match Completed notification -->
+        <div id="match-completed-container" class="premium-card" style="display:none; border-color:var(--accent-gold); text-align:center;">
+            <h3 class="card-title text-gold" style="justify-content:center; border-bottom:none;"><i class="fa-solid fa-trophy"></i> Match Completed</h3>
+            <h2 id="match-completed-result" style="font-size:1.5rem; font-weight:800; margin:1rem 0; color:var(--accent-gold);">RESULT</h2>
+            <p class="muted" style="font-size:0.85rem; margin-bottom:1.5rem;">Match scorecard has been locked and player career statistics updated.</p>
+
+            <!-- CricScorer Performance Ratings & Awards -->
+            <div id="match-awards-container" style="text-align: left; margin: 1.5rem 0; border-top: 1px solid var(--border-card); padding-top: 1.5rem;">
+                <!-- Awards HTML injected dynamically via scoring.js -->
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                <a href="{{ url_for('match_view', match_id=match_id) }}" class="btn btn-primary"><i class="fa-solid fa-file-invoice"></i> View Scorecard</a>
+                <a href="{{ url_for('index') }}" class="btn btn-outline">Back to Dashboard</a>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+<!-- BOWLER SELECTION MODAL -->
+<div id="bowler-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="modal-header">Select Bowler for Next Over</h3>
+        <p class="muted" style="font-size:0.85rem; margin-top:-0.75rem; margin-bottom:1.5rem;">A bowler cannot bowl consecutive overs in an innings.</p>
+        <div id="bowler-list-container" class="squad-selection-card" style="height:250px;">
+            <!-- radios injected dynamically -->
+        </div>
+        <div class="modal-footer">
+            <button id="btn-confirm-bowler" class="btn btn-primary" disabled>Confirm Bowler</button>
+        </div>
+    </div>
+</div>
+
+<!-- WICKET MODAL -->
+<div id="wicket-modal" class="modal">
+    <div class="modal-content" style="max-width: 550px;">
+        <h3 class="modal-header"><i class="fa-solid fa-skull text-danger"></i> Record Wicket</h3>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="wicket-type-select">Dismissal Type</label>
+                <select id="wicket-type-select" class="form-control">
+                    <option value="bowled">Bowled</option>
+                    <option value="caught">Caught</option>
+                    <option value="lbw">LBW</option>
+                    <option value="stumped">Stumped</option>
+                    <option value="run_out">Run Out</option>
+                    <option value="hit_wicket">Hit Wicket</option>
+                    <option value="retired_hurt">Retired Hurt (Not Out)</option>
+                    <option value="retired_out">Retired Out (Wicket)</option>
+                    <option value="obstructing_field">Obstructing the Field</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="player-dismissed-select">Batter Dismissed</label>
+                <select id="player-dismissed-select" class="form-control" disabled></select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <!-- Fielder container (shown for caught/stumped/run_out) -->
+            <div id="fielder-container" class="form-group" style="display:none;">
+                <label for="fielder-select">Fielder Involved</label>
+                <select id="fielder-select" class="form-control"></select>
+            </div>
+            
+            <!-- Runs container (shown for run_out) -->
+            <div id="runout-runs-container" class="form-group" style="display:none;">
+                <label for="runout-runs-select">Completed Runs before Wicket</label>
+                <select id="runout-runs-select" class="form-control">
+                    <option value="0">0 Runs</option>
+                    <option value="1">1 Run</option>
+                    <option value="2">2 Runs</option>
+                    <option value="3">3 Runs</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="new-batter-select">Incoming Batter</label>
+                <select id="new-batter-select" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label for="next-striker-select">Batter on Strike Next Ball</label>
+                <select id="next-striker-select" class="form-control"></select>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button id="btn-confirm-wicket" class="btn btn-danger">Confirm Wicket</button>
+            <button id="btn-cancel-wicket" class="btn btn-outline">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- MANAGE SQUAD MODAL -->
+<div id="squad-modal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3 class="modal-header" style="display:flex; align-items:center; gap:0.5rem; border-bottom: 1px solid var(--border-card); padding-bottom:0.75rem; margin-bottom:1rem;">
+            <i class="fa-solid fa-users-gear text-indigo"></i> Manage Match Squad &amp; substitutions
+        </h3>
+        
+        <div style="max-height: 400px; overflow-y: auto; display:flex; flex-direction:column; gap:1.25rem;">
+            <!-- Batting Team Section -->
+            <div>
+                <h4 id="squad-batting-team-title" class="bold text-emerald" style="font-size:0.95rem; margin-bottom:0.5rem;">Batting Team</h4>
+                <div id="squad-batting-list" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <!-- JS populated -->
+                </div>
+            </div>
+            
+            <hr style="border:0; border-top:1px solid var(--border-card); margin:0;">
+            
+            <!-- Bowling Team Section -->
+            <div>
+                <h4 id="squad-bowling-team-title" class="bold text-indigo" style="font-size:0.95rem; margin-bottom:0.5rem;">Bowling Team</h4>
+                <div id="squad-bowling-list" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <!-- JS populated -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer" style="border-top: 1px solid var(--border-card); padding-top:1rem; margin-top: 1rem;">
+            <button id="btn-close-squad" class="btn btn-outline">Close</button>
+        </div>
+</div>
+
+<!-- CAREER STATS TOAST CONTAINER -->
+<div id="career-stats-toast-container" style="position: fixed; bottom: 2rem; right: 2rem; z-index: 10000; display: flex; flex-direction: column; gap: 1rem; pointer-events: none;"></div>
+
+<style>
+@keyframes slideIn {
+    from {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+}
+@keyframes progressTimer {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+.career-toast {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-card);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const matchId = {{ match_id }};
+    const inningsId = {{ innings_id }};
+</script>
+<script src="{{ url_for('static', filename='js/scoring.js') }}?v=1.4"></script>
+{% endblock %}

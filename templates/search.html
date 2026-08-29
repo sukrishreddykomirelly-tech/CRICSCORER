@@ -1,0 +1,109 @@
+<!-- search.html -->
+{% extends "base.html" %}
+
+{% block title %}Search Results for "{{ query }}" - CricScorer{% endblock %}
+
+{% block content %}
+<h1 class="hero-title" style="font-size: 2rem; margin-bottom: 2rem;">Search Results for "<span class="highlight">{{ query }}</span>"</h1>
+
+<div style="display:flex; flex-direction:column; gap:2.5rem;">
+    <!-- Players -->
+    <div>
+        <h2 class="card-title" style="border-bottom: 1.5px solid var(--border-card); padding-bottom: 0.5rem; margin-bottom: 1rem;"><i class="fa-solid fa-user"></i> Players ({{ results.players | length }})</h2>
+        {% if results.players %}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                {% for p in results.players %}
+                    <a href="{{ url_for('player_profile', player_id=p.id) }}" class="leaderboard-item premium-card" style="padding: 1rem; border-radius: var(--radius-sm);">
+                        <div class="leaderboard-player-info">
+                            <img src="{{ p.avatar_url }}" alt="avatar" class="leaderboard-avatar" style="width: 2.5rem; height: 2.5rem;">
+                            <div>
+                                <div class="leaderboard-name" style="font-size: 1.05rem;">{{ p.name }}</div>
+                                <div class="leaderboard-sub" style="font-size: 0.8rem;">{{ p.batting_style }} | {{ p.bowling_style }}</div>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No players found matching your query.</p>
+        {% endif %}
+    </div>
+
+    <!-- Teams -->
+    <div>
+        <h2 class="card-title" style="border-bottom: 1.5px solid var(--border-card); padding-bottom: 0.5rem; margin-bottom: 1rem;"><i class="fa-solid fa-shield-halved"></i> Teams ({{ results.teams | length }})</h2>
+        {% if results.teams %}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                {% for t in results.teams %}
+                    <a href="{{ url_for('team_profile', team_id=t.id) }}" class="leaderboard-item premium-card" style="padding: 1rem; border-radius: var(--radius-sm);">
+                        <div class="leaderboard-player-info">
+                            <img src="{{ t.logo_url }}" alt="logo" class="leaderboard-avatar" style="width: 2.5rem; height: 2.5rem;">
+                            <div class="leaderboard-name" style="font-size: 1.05rem;">{{ t.name }}</div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No teams found matching your query.</p>
+        {% endif %}
+    </div>
+
+    <!-- Matches -->
+    <div>
+        <h2 class="card-title" style="border-bottom: 1.5px solid var(--border-card); padding-bottom: 0.5rem; margin-bottom: 1rem;"><i class="fa-solid fa-cricket-bat-ball"></i> Matches ({{ results.matches | length }})</h2>
+        {% if results.matches %}
+            <div class="match-card-grid">
+                {% for m in results.matches %}
+                    <div class="match-card">
+                        <span class="match-card-badge {% if m.status == 'live' %}badge-live{% else %}badge-completed{% endif %}">{{ m.status | upper }}</span>
+                        <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 0.5rem;">
+                            <i class="fa-solid fa-map-marker-alt"></i> {{ m.ground }} | {{ m.match_format }} | {{ m.match_date }}
+                        </div>
+                        <div class="match-card-teams">
+                            <div class="team-row">
+                                <div class="team-info">
+                                    <img src="{{ m.team1_logo }}" alt="logo" class="team-logo">
+                                    <span class="team-name">{{ m.team1_name }}</span>
+                                </div>
+                            </div>
+                            <div class="team-row">
+                                <div class="team-info">
+                                    <img src="{{ m.team2_logo }}" alt="logo" class="team-logo">
+                                    <span class="team-name">{{ m.team2_name }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="match-card-footer">
+                            <span class="match-result-text">{% if m.result_margin %}{{ m.result_margin | upper }}{% else %}{{ m.status | upper }}{% endif %}</span>
+                            <a href="{{ url_for('match_view', match_id=m.id) }}" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                View Match
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No matches found matching your query.</p>
+        {% endif %}
+    </div>
+
+    <!-- Tournaments -->
+    <div>
+        <h2 class="card-title" style="border-bottom: 1.5px solid var(--border-card); padding-bottom: 0.5rem; margin-bottom: 1rem;"><i class="fa-solid fa-trophy"></i> Tournaments ({{ results.tournaments | length }})</h2>
+        {% if results.tournaments %}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                {% for tourney in results.tournaments %}
+                    <a href="{{ url_for('tournament_detail', tournament_id=tourney.id) }}" class="leaderboard-item premium-card" style="padding: 1rem; border-radius: var(--radius-sm);">
+                        <div class="leaderboard-player-info">
+                            <i class="fa-solid fa-award highlight" style="font-size: 1.5rem; padding: 0.25rem;"></i>
+                            <div class="leaderboard-name" style="font-size: 1.05rem;">{{ tourney.name }}</div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No tournaments found matching your query.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

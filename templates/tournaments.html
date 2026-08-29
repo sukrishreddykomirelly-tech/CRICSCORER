@@ -1,0 +1,80 @@
+<!-- tournaments.html -->
+{% extends "base.html" %}
+
+{% block title %}Tournaments - CricScorer{% endblock %}
+
+{% block content %}
+<div class="scoring-grid">
+    <!-- Left Column: Tournaments List -->
+    <div>
+        <h2 class="card-title"><i class="fa-solid fa-trophy text-gold"></i> Active Tournaments</h2>
+        {% if tournaments %}
+            <div style="display:flex; flex-direction:column; gap:1.25rem;">
+                {% for tourney in tournaments %}
+                    <div class="premium-card">
+                        <h3 class="card-title" style="border-bottom:none; margin-bottom:0.25rem; font-size:1.25rem;">
+                            <a href="{{ url_for('tournament_detail', tournament_id=tourney.id) }}" class="highlight">
+                                {{ tourney.name }}
+                            </a>
+                        </h3>
+                        <p class="muted" style="font-size:0.85rem; margin-bottom: 1rem;"><i class="fa-solid fa-award"></i> Points system: Win={{ tourney.win_points }} pts | Tie={{ tourney.tie_points }} pts | NR={{ tourney.nr_points }} pts</p>
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <a href="{{ url_for('tournament_detail', tournament_id=tourney.id) }}" class="btn btn-outline" style="padding: 0.45rem 0.9rem; font-size:0.85rem;">
+                                Standings &amp; Fixtures <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No tournaments created yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Create Tournament Form -->
+    <div class="premium-card">
+        <h3 class="card-title"><i class="fa-solid fa-circle-plus highlight"></i> Create Tournament</h3>
+        
+        <form action="{{ url_for('tournaments_list') }}" method="POST">
+            <div class="form-group">
+                <label for="name">Tournament Name</label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Champions Trophy 2026" required>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="win_points">Points for Win</label>
+                    <input type="number" id="win_points" name="win_points" class="form-control" value="2" min="1" max="10">
+                </div>
+                <div class="form-group">
+                    <label for="tie_points">Points for Tie/NR</label>
+                    <input type="number" id="tie_points" name="tie_points" class="form-control" value="1" min="0" max="5">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Participating Teams</label>
+                <p class="muted" style="font-size:0.78rem; margin-bottom: 0.5rem;">Select the teams that will play in this tournament league.</p>
+                
+                <div class="squad-selection-card" style="height: 250px;">
+                    {% if teams %}
+                        <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                            {% for t in teams %}
+                                <label class="squad-checkbox-item">
+                                    <input type="checkbox" name="teams" value="{{ t.id }}" checked>
+                                    <span>{{ t.name }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="muted">No teams in database. First <a href="{{ url_for('team_create') }}" class="highlight">create teams</a>.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1.5rem;"><i class="fa-solid fa-save"></i> Save Tournament</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
