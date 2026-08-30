@@ -6,7 +6,7 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["bash", "-c", "python -c 'import database; database.init_db(); database.seed_db()' && exec gunicorn --bind 0.0.0.0:5000 --workers 1 app:app"]
-deploymentTarget = "vm"
+deploymentTarget = "autoscale"
 
 [workflows]
 runButton = "Project"
