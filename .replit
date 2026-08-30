@@ -1,8 +1,8 @@
-modules = ["python-3.10"]
+modules = ["python-3.12", "web", "nodejs-20"]
 run = "python app.py"
 
 [nix]
-channel = "stable-23_05"
+channel = "stable-25_05"
 
 [deployment]
 run = ["python", "app.py"]
