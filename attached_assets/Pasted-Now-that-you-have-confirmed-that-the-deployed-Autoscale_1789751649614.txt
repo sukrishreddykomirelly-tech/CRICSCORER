@@ -1,0 +1,84 @@
+Now that you have confirmed that the deployed Autoscale environment has an ephemeral filesystem, I want to migrate CricScorer from the local SQLite database to Replit's persistent managed PostgreSQL database.
+
+IMPORTANT:
+Do NOT modify the application yet.
+Do NOT delete or reset SQLite.
+Do NOT change the UI, scoring engine, scoring rules, awards system, PDF system, live SSE system, or existing functionality.
+
+First inspect the current project and prepare a migration plan.
+
+Please determine:
+
+1. The complete current SQLite schema:
+
+   * every table
+   * every column
+   * data types
+   * primary keys
+   * foreign keys
+   * indexes
+   * relationships
+
+2. Identify every place in the code that directly uses SQLite:
+
+   * sqlite3.connect
+   * SQL queries
+   * transactions
+   * placeholders
+   * PRAGMA statements
+   * database initialization
+   * seed data
+   * backups
+   * tests
+
+3. Identify every feature that depends on the database:
+
+   * players
+   * teams
+   * tournaments
+   * matches
+   * innings
+   * deliveries
+   * substitutions
+   * statistics
+   * awards
+   * live match data
+   * PDF reports
+   * search/profile pages
+
+4. Check whether Replit's managed PostgreSQL database is already available/configured for this project.
+
+5. Determine the safest PostgreSQL driver/library for the existing Flask application.
+
+6. Create a detailed migration plan that preserves all existing data.
+
+7. Design a one-time SQLite → PostgreSQL migration process that:
+
+   * backs up the SQLite database first
+   * creates the PostgreSQL schema
+   * transfers all existing records
+   * preserves IDs and relationships where possible
+   * verifies row counts
+   * verifies foreign-key relationships
+   * verifies existing matches and deliveries
+   * does not duplicate records if migration is run twice
+
+8. Explain exactly how the deployed Autoscale application will connect to PostgreSQL so that every new match is stored persistently.
+
+9. Explain how local development will work after the migration.
+
+10. Explain what happens to the existing `cricscorer.db` after migration. Do NOT delete it.
+
+At the end, provide:
+
+CURRENT ARCHITECTURE:
+TARGET ARCHITECTURE:
+TABLES TO MIGRATE:
+FILES THAT NEED CHANGES:
+DATA MIGRATION METHOD:
+BACKUP PLAN:
+VERIFICATION PLAN:
+RISKS:
+ROLLBACK PLAN:
+
+Do not implement anything yet. I want to review the plan first.
