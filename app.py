@@ -1,7 +1,6 @@
 # app.py
 import json
 import queue
-import sqlite3
 import mimetypes
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, g
 import database

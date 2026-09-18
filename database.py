@@ -1,208 +1,21 @@
 # database.py
-import sqlite3
-import os
+from postgres_db import ensure_postgres_schema, get_postgres_connection
 from scoring import MatchState, InningsState
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "cricscorer.db")
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    # Enable foreign keys
-    conn.execute("PRAGMA foreign_keys = ON;")
-    return conn
+    """Return a PostgreSQL connection; SQLite fallback is intentionally disabled."""
+    return get_postgres_connection()
+
 
 def init_db():
+    """Ensure the persistent PostgreSQL schema exists."""
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # 1. Players Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS players (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        batting_style TEXT,
-        bowling_style TEXT,
-        is_keeper INTEGER DEFAULT 0,
-        avatar_url TEXT
-    );
-    """)
-    
-    # 2. Teams Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS teams (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        logo_url TEXT
-    );
-    """)
-    
-    # 3. Team Players (Roster)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS team_players (
-        team_id INTEGER,
-        player_id INTEGER,
-        PRIMARY KEY (team_id, player_id),
-        FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
-        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
-    );
-    """)
-    
-    # 4. Tournaments Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS tournaments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        win_points INTEGER DEFAULT 2,
-        tie_points INTEGER DEFAULT 1,
-        nr_points INTEGER DEFAULT 1
-    );
-    """)
-    
-    # 5. Tournament Teams Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS tournament_teams (
-        tournament_id INTEGER,
-        team_id INTEGER,
-        PRIMARY KEY (tournament_id, team_id),
-        FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
-        FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
-    );
-    """)
-    
-    # 6. Matches Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS matches (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tournament_id INTEGER,
-        team1_id INTEGER NOT NULL,
-        team2_id INTEGER NOT NULL,
-        match_format TEXT DEFAULT 'T20',
-        overs_limit INTEGER DEFAULT 20,
-        ground TEXT,
-        match_date TEXT,
-        match_time TEXT,
-        status TEXT DEFAULT 'scheduled', -- scheduled, toss_done, live, completed, abandoned
-        toss_winner_id INTEGER,
-        toss_decision TEXT, -- bat, bowl
-        current_innings_id INTEGER,
-        winner_id INTEGER,
-        result_margin TEXT,
-        is_super_over INTEGER DEFAULT 0,
-        single_batting INTEGER DEFAULT 0,
-        FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE SET NULL,
-        FOREIGN KEY (team1_id) REFERENCES teams(id),
-        FOREIGN KEY (team2_id) REFERENCES teams(id),
-        FOREIGN KEY (toss_winner_id) REFERENCES teams(id),
-        FOREIGN KEY (winner_id) REFERENCES teams(id)
-    );
-    """)
-    
-    # 7. Match Players (Selected playing XIs)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS match_players (
-        match_id INTEGER,
-        team_id INTEGER,
-        player_id INTEGER,
-        batting_order INTEGER,
-        PRIMARY KEY (match_id, team_id, player_id),
-        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
-        FOREIGN KEY (team_id) REFERENCES teams(id),
-        FOREIGN KEY (player_id) REFERENCES players(id)
-    );
-    """)
-    
-    # 8. Innings Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS innings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        match_id INTEGER NOT NULL,
-        innings_number INTEGER NOT NULL, -- 1 or 2
-        batting_team_id INTEGER NOT NULL,
-        bowling_team_id INTEGER NOT NULL,
-        total_runs INTEGER DEFAULT 0,
-        total_wickets INTEGER DEFAULT 0,
-        balls_bowled INTEGER DEFAULT 0,
-        wides INTEGER DEFAULT 0,
-        noballs INTEGER DEFAULT 0,
-        byes INTEGER DEFAULT 0,
-        legbyes INTEGER DEFAULT 0,
-        status TEXT DEFAULT 'ongoing', -- ongoing, completed
-        current_striker_id INTEGER,
-        current_non_striker_id INTEGER,
-        current_bowler_id INTEGER,
-        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
-        FOREIGN KEY (batting_team_id) REFERENCES teams(id),
-        FOREIGN KEY (bowling_team_id) REFERENCES teams(id),
-        FOREIGN KEY (current_striker_id) REFERENCES players(id),
-        FOREIGN KEY (current_non_striker_id) REFERENCES players(id),
-        FOREIGN KEY (current_bowler_id) REFERENCES players(id)
-    );
-    """)
-    
-    # 9. Deliveries Table (Source of truth)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS deliveries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        innings_id INTEGER NOT NULL,
-        over_number INTEGER NOT NULL, -- 1-indexed over count
-        ball_of_over INTEGER NOT NULL, -- 1-6 legal balls
-        delivery_count INTEGER NOT NULL, -- sequence of ball in over (incl. extras)
-        striker_id INTEGER NOT NULL,
-        non_striker_id INTEGER NOT NULL,
-        bowler_id INTEGER NOT NULL,
-        runs_batter INTEGER DEFAULT 0,
-        runs_extras INTEGER DEFAULT 0,
-        extra_type TEXT, -- wide, noball, bye, legbye, None
-        is_legal INTEGER DEFAULT 1,
-        is_wicket INTEGER DEFAULT 0,
-        wicket_type TEXT, -- bowled, caught, lbw, stumped, run_out, hit_wicket, retired_out, retired_hurt, obstructing_field
-        player_dismissed_id INTEGER,
-        fielder_id INTEGER,
-        is_bowler_wicket INTEGER DEFAULT 0,
-        commentary TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (innings_id) REFERENCES innings(id) ON DELETE CASCADE,
-        FOREIGN KEY (striker_id) REFERENCES players(id),
-        FOREIGN KEY (non_striker_id) REFERENCES players(id),
-        FOREIGN KEY (bowler_id) REFERENCES players(id),
-        FOREIGN KEY (player_dismissed_id) REFERENCES players(id),
-        FOREIGN KEY (fielder_id) REFERENCES players(id)
-    );
-    """)
-    
-    # 10. Substitutions Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS substitutions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        match_id INTEGER NOT NULL,
-        innings_id INTEGER NOT NULL,
-        outgoing_id INTEGER NOT NULL,
-        incoming_id INTEGER NOT NULL,
-        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
-        FOREIGN KEY (outgoing_id) REFERENCES players(id),
-        FOREIGN KEY (incoming_id) REFERENCES players(id)
-    );
-    """)
-    
-    # Migration: add single_batting column if it doesn't exist in matches table
     try:
-        cursor.execute("ALTER TABLE matches ADD COLUMN single_batting INTEGER DEFAULT 0")
-    except Exception:
-        pass
-        
-    try:
-        cursor.execute("ALTER TABLE deliveries ADD COLUMN new_batter_id INTEGER")
-    except Exception:
-        pass
-        
-    try:
-        cursor.execute("ALTER TABLE deliveries ADD COLUMN next_striker_id INTEGER")
-    except Exception:
-        pass
-        
-    conn.commit()
-    conn.close()
+        ensure_postgres_schema(conn)
+    finally:
+        conn.close()
+
 
 def seed_db():
     conn = get_db_connection()
@@ -797,7 +610,10 @@ def get_player_profile(player_id):
         FROM deliveries
         WHERE bowler_id = ?
         GROUP BY innings_id, over_number
-        HAVING legal_balls = 6 AND bowler_runs = 0
+        HAVING COUNT(CASE WHEN is_legal = 1 THEN 1 END) = 6
+           AND COALESCE(SUM(CASE WHEN extra_type = 'wide' THEN 1 + runs_extras
+                                 WHEN extra_type = 'noball' THEN 1 + runs_batter
+                                 ELSE runs_batter END), 0) = 0
            AND COUNT(CASE WHEN is_legal = 0 THEN 1 END) = 0
     """, (player_id,))
     maidens = len(cursor.fetchall())
@@ -888,7 +704,7 @@ def get_player_profile(player_id):
         JOIN teams t1 ON m.team1_id = t1.id
         JOIN teams t2 ON m.team2_id = t2.id
         WHERE mp.player_id = ?
-        GROUP BY m.id
+        GROUP BY m.id, m.match_date, t1.name, t2.name, i.id
         ORDER BY m.id DESC LIMIT 5
     """, (player_id, player_id, player_id, player_id, player_id, player_id))
     recent_performances = [dict(row) for row in cursor.fetchall()]
@@ -1170,7 +986,7 @@ def get_tournament_details(tournament_id):
         JOIN matches m ON i.match_id = m.id
         JOIN teams t ON i.batting_team_id = t.id
         WHERE m.tournament_id = ?
-        GROUP BY p.id
+        GROUP BY p.id, p.name, p.avatar_url, t.name
         ORDER BY total_runs DESC LIMIT 5
     """, (tournament_id,))
     top_scorers = [dict(row) for row in cursor.fetchall()]
@@ -1185,7 +1001,7 @@ def get_tournament_details(tournament_id):
         JOIN matches m ON i.match_id = m.id
         JOIN teams t ON i.bowling_team_id = t.id
         WHERE m.tournament_id = ?
-        GROUP BY p.id
+        GROUP BY p.id, p.name, p.avatar_url, t.name
         ORDER BY total_wickets DESC LIMIT 5
     """, (tournament_id,))
     top_bowlers = [dict(row) for row in cursor.fetchall()]

@@ -1,0 +1,52 @@
+Proceed with the approved SQLite → PostgreSQL migration for CricScorer.
+
+My main requirement is:
+
+**From now on, every new match, player, team, tournament, innings, delivery, statistic, and award must be stored persistently and must NOT disappear when the Replit Autoscale container restarts, sleeps, scales down, or is replaced.**
+
+Before changing anything:
+
+1. Create a complete backup of the existing `cricscorer.db`.
+2. Never delete or overwrite the existing SQLite database.
+3. Preserve all data currently present in SQLite.
+
+Then:
+
+* Set up Replit's managed PostgreSQL database.
+* Migrate the existing SQLite schema and data to PostgreSQL.
+* Preserve IDs and relationships.
+* Update the application so PostgreSQL is the LIVE production database.
+* Do not silently fall back to SQLite.
+* Ensure every database operation used by the app uses PostgreSQL after the migration.
+* Keep the existing scoring engine, cricket rules, UI, awards system, PDF reports, analytics, and live scoring behavior unchanged.
+* Do not redesign or add features.
+
+After migration, verify all of the following:
+
+1. Create a test player.
+2. Create a test team.
+3. Create a test match.
+4. Score several deliveries including runs and at least one wicket.
+5. Complete/save the match.
+6. Confirm the records exist in PostgreSQL.
+7. Restart the application.
+8. Confirm the same match and all its scoring data are still visible.
+9. Confirm the app is still connected to the same PostgreSQL database after restart.
+10. Confirm no new `cricscorer.db` is being used for production writes.
+
+Also verify that the PostgreSQL database is persistent independently of the Autoscale container.
+
+IMPORTANT:
+Do not tell me the data is safe merely because the migration code works. Verify that the DEPLOYED production application is actually writing to PostgreSQL.
+
+At the end, report clearly:
+
+DATABASE NOW USED BY PRODUCTION:
+POSTGRESQL CONNECTION: YES/NO
+PERSISTENT STORAGE: YES/NO
+SQLITE STILL USED BY PRODUCTION: YES/NO
+EXISTING DATA PRESERVED: YES/NO
+TEST MATCH SURVIVED RESTART: YES/NO
+MIGRATION COMPLETED: YES/NO
+
+If any of these cannot be verified, STOP and tell me exactly what remains to be configured rather than claiming the issue is fixed.

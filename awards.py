@@ -1,4 +1,3 @@
-import sqlite3
 from database import get_db_connection
 
 def calculate_awards(match_state):

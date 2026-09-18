@@ -1,0 +1,1 @@
+- [PostgreSQL migration lessons](postgresql-migration-lessons.md) — PostgreSQL enforces grouping rules that SQLite may accept permissively.
