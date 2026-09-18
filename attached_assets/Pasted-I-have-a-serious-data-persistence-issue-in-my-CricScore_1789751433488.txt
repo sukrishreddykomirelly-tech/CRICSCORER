@@ -1,0 +1,65 @@
+I have a serious data persistence issue in my CricScorer Flask app.
+
+ISSUE:
+
+* I create a cricket match and score it normally.
+* The match is saved and visible.
+* After around 3–4 hours, the match disappears.
+* It seems like the SQLite database is being reset or a fresh database is being created.
+* I need to find the REAL cause on the deployed Replit environment.
+
+IMPORTANT:
+Do NOT modify my code yet.
+Do NOT migrate the database yet.
+Do NOT delete, recreate, reset, or overwrite any existing data.
+
+Please investigate and report:
+
+1. What deployment type is this Replit app currently using?
+
+   * Autoscale
+   * Reserved VM
+   * Static
+   * or another type
+
+2. Where exactly is `cricscorer.db` currently stored at runtime?
+
+3. Is that filesystem location persistent across:
+
+   * app idle periods
+   * container restart
+   * container replacement
+   * redeployment/republish?
+
+4. Check whether Replit can replace/recycle the running container after inactivity and whether files created at runtime would then be lost.
+
+5. Check the current database configuration in:
+
+   * app.py
+   * database.py
+   * init_db.py
+   * deployment configuration
+   * .replit / deployment-related configuration
+   * environment variables
+
+6. Check whether multiple SQLite database files can be created in different locations.
+
+7. Check whether `init_db()` or `seed_db()` can accidentally create a new empty database when the original database is unavailable.
+
+8. Determine whether the current setup can reliably retain cricket matches, players, teams, innings, deliveries, tournaments, awards, and all other SQLite data.
+
+9. If the current deployment cannot guarantee persistence, explain the exact Replit-supported solution that should be used.
+
+10. Do NOT assume that `/persistent` or `/data` is persistent unless you verify that it is actually mounted and persistent in THIS Replit deployment.
+
+At the end, give me a short diagnosis in this format:
+
+CAUSE:
+CURRENT DATABASE PATH:
+DEPLOYMENT TYPE:
+IS CURRENT STORAGE PERSISTENT: YES/NO
+WHY MATCHES DISAPPEAR:
+RECOMMENDED FIX:
+WILL EXISTING DATA BE PRESERVED: YES/NO
+
+Again: investigation only for now. Do not make changes until I review the diagnosis.
