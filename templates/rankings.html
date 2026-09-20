@@ -1,0 +1,259 @@
+<!-- rankings.html -->
+{% extends "base.html" %}
+
+{% block title %}Player Career Rankings - CricScorer{% endblock %}
+
+{% block content %}
+<div style="display:flex; flex-direction:column; gap:2rem;">
+    <!-- Header Banner -->
+    <div class="premium-card" style="position:relative; background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9)); border: 1px solid var(--border-card);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+            <div>
+                <h1 class="hero-title" style="font-size: 2.2rem; margin-bottom: 0.5rem; letter-spacing: -0.5px;">
+                    <i class="fa-solid fa-ranking-star text-gold"></i> Career Player Rankings
+                </h1>
+                <p class="muted" style="font-size:0.95rem;">
+                    Official independent career ratings out of 1000 calculated from completed match MVP performance points.
+                </p>
+            </div>
+            <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                <div style="background: rgba(255,255,255,0.04); padding: 0.75rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-card); text-align:center;">
+                    <span class="muted" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; display:block;">Completed Matches</span>
+                    <span class="bold highlight" style="font-size:1.4rem;">{{ rankings.total_completed_matches }}</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.04); padding: 0.75rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-card); text-align:center;">
+                    <span class="muted" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; display:block;">Min Participation</span>
+                    <span class="bold text-emerald" style="font-size:1.4rem;">{{ rankings.min_participation }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 1rem; padding: 0.75rem 1rem; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-secondary); display:flex; gap:0.5rem; align-items:flex-start;">
+            <i class="fa-solid fa-circle-info text-indigo" style="margin-top: 0.2rem;"></i>
+            <div>
+                <strong>Rules &amp; Eligibility:</strong>
+                Players must participate in &ge; 50% of completed matches (when &ge; 4 matches played) to qualify for the main leaderboards.
+                Missing 2+ consecutive completed matches applies an automatic 5% global inactivity penalty to current ratings, which resets upon participation.
+            </div>
+        </div>
+    </div>
+
+    <!-- 3 Separate Rankings Section -->
+    <div style="display:flex; flex-direction:column; gap:2.5rem;">
+        
+        <!-- 1. BEST BATSMEN -->
+        <div class="premium-card" id="batting-rankings">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom: 2px solid var(--accent-emerald); padding-bottom:0.75rem;">
+                <h2 class="card-title" style="margin:0; border:none; padding:0; font-size:1.4rem;">
+                    🏏 BEST BATSMEN
+                </h2>
+                <span class="badge badge-completed" style="font-size:0.8rem;">Rating / 1000</span>
+            </div>
+
+            {% if rankings.batsmen %}
+                <div class="table-responsive">
+                    <table class="scorecard-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">Rank</th>
+                                <th>Player</th>
+                                <th>Team</th>
+                                <th class="num">Innings Batted</th>
+                                <th class="num">Total MVP</th>
+                                <th class="num">Batting Avg</th>
+                                <th class="num">Status</th>
+                                <th class="num" style="width: 140px;">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in rankings.batsmen %}
+                                <tr style="{% if loop.index == 1 %}background: rgba(234, 179, 8, 0.06);{% elif loop.index <= 3 %}background: rgba(255, 255, 255, 0.02);{% endif %}">
+                                    <td class="bold">
+                                        {% if loop.index == 1 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(234,179,8,0.2); color:#eab308; border-radius:50%;"><i class="fa-solid fa-crown"></i></span>
+                                        {% elif loop.index == 2 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(148,163,184,0.2); color:#94a3b8; border-radius:50%;">2</span>
+                                        {% elif loop.index == 3 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(217,119,6,0.2); color:#d97706; border-radius:50%;">3</span>
+                                        {% else %}
+                                            <span style="padding-left:0.5rem;" class="muted">{{ loop.index }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('player_profile', player_id=p.player_id) }}" style="display:flex; align-items:center; gap:0.75rem;">
+                                            <img src="{{ p.avatar_url }}" alt="avatar" style="width: 2rem; height: 2rem; border-radius: 50%; border: 1px solid var(--border-card);">
+                                            <div>
+                                                <span class="bold highlight">{{ p.name }}</span>
+                                                <div class="muted" style="font-size:0.75rem;">{{ p.batting_style }}</div>
+                                            </div>
+                                        </a>
+                                    </td>
+                                    <td class="muted">{{ p.team_name }}</td>
+                                    <td class="num bold">{{ p.matches_batted }}</td>
+                                    <td class="num">{{ p.total_points }}</td>
+                                    <td class="num bold text-emerald">{{ p.average_points }}</td>
+                                    <td class="num">
+                                        {% if p.has_penalty %}
+                                            <span class="match-card-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:0.7rem;" title="5% inactivity penalty (missed {{ p.inactivity_streak }} consecutive matches)">-5% Inactive</span>
+                                        {% else %}
+                                            <span class="match-card-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.7rem;">Active</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="num bold" style="font-size:1.15rem; color: #38bdf8;">
+                                        {{ p.rating }} <span class="muted" style="font-size:0.75rem; font-weight:normal;">/1000</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="muted" style="text-align:center; padding: 2rem;">No batsmen qualified for the career leaderboard yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- 2. BEST BOWLERS -->
+        <div class="premium-card" id="bowling-rankings">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom: 2px solid var(--accent-indigo); padding-bottom:0.75rem;">
+                <h2 class="card-title" style="margin:0; border:none; padding:0; font-size:1.4rem;">
+                    🎯 BEST BOWLERS
+                </h2>
+                <span class="badge badge-completed" style="font-size:0.8rem;">Rating / 1000</span>
+            </div>
+
+            {% if rankings.bowlers %}
+                <div class="table-responsive">
+                    <table class="scorecard-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">Rank</th>
+                                <th>Player</th>
+                                <th>Team</th>
+                                <th class="num">Innings Bowled</th>
+                                <th class="num">Total MVP</th>
+                                <th class="num">Bowling Avg</th>
+                                <th class="num">Status</th>
+                                <th class="num" style="width: 140px;">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in rankings.bowlers %}
+                                <tr style="{% if loop.index == 1 %}background: rgba(234, 179, 8, 0.06);{% elif loop.index <= 3 %}background: rgba(255, 255, 255, 0.02);{% endif %}">
+                                    <td class="bold">
+                                        {% if loop.index == 1 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(234,179,8,0.2); color:#eab308; border-radius:50%;"><i class="fa-solid fa-crown"></i></span>
+                                        {% elif loop.index == 2 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(148,163,184,0.2); color:#94a3b8; border-radius:50%;">2</span>
+                                        {% elif loop.index == 3 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(217,119,6,0.2); color:#d97706; border-radius:50%;">3</span>
+                                        {% else %}
+                                            <span style="padding-left:0.5rem;" class="muted">{{ loop.index }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('player_profile', player_id=p.player_id) }}" style="display:flex; align-items:center; gap:0.75rem;">
+                                            <img src="{{ p.avatar_url }}" alt="avatar" style="width: 2rem; height: 2rem; border-radius: 50%; border: 1px solid var(--border-card);">
+                                            <div>
+                                                <span class="bold highlight">{{ p.name }}</span>
+                                                <div class="muted" style="font-size:0.75rem;">{{ p.bowling_style }}</div>
+                                            </div>
+                                        </a>
+                                    </td>
+                                    <td class="muted">{{ p.team_name }}</td>
+                                    <td class="num bold">{{ p.matches_bowled }}</td>
+                                    <td class="num">{{ p.total_points }}</td>
+                                    <td class="num bold text-indigo">{{ p.average_points }}</td>
+                                    <td class="num">
+                                        {% if p.has_penalty %}
+                                            <span class="match-card-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:0.7rem;" title="5% inactivity penalty (missed {{ p.inactivity_streak }} consecutive matches)">-5% Inactive</span>
+                                        {% else %}
+                                            <span class="match-card-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.7rem;">Active</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="num bold" style="font-size:1.15rem; color: #a855f7;">
+                                        {{ p.rating }} <span class="muted" style="font-size:0.75rem; font-weight:normal;">/1000</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="muted" style="text-align:center; padding: 2rem;">No bowlers qualified for the career leaderboard yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- 3. BEST FIELDERS -->
+        <div class="premium-card" id="fielding-rankings">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom: 2px solid var(--accent-gold); padding-bottom:0.75rem;">
+                <h2 class="card-title" style="margin:0; border:none; padding:0; font-size:1.4rem;">
+                    🧤 BEST FIELDERS
+                </h2>
+                <span class="badge badge-completed" style="font-size:0.8rem;">Rating / 1000</span>
+            </div>
+
+            {% if rankings.fielders %}
+                <div class="table-responsive">
+                    <table class="scorecard-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">Rank</th>
+                                <th>Player</th>
+                                <th>Team</th>
+                                <th class="num">Fielding Matches</th>
+                                <th class="num">Total MVP</th>
+                                <th class="num">Fielding Avg</th>
+                                <th class="num">Status</th>
+                                <th class="num" style="width: 140px;">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in rankings.fielders %}
+                                <tr style="{% if loop.index == 1 %}background: rgba(234, 179, 8, 0.06);{% elif loop.index <= 3 %}background: rgba(255, 255, 255, 0.02);{% endif %}">
+                                    <td class="bold">
+                                        {% if loop.index == 1 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(234,179,8,0.2); color:#eab308; border-radius:50%;"><i class="fa-solid fa-crown"></i></span>
+                                        {% elif loop.index == 2 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(148,163,184,0.2); color:#94a3b8; border-radius:50%;">2</span>
+                                        {% elif loop.index == 3 %}
+                                            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background: rgba(217,119,6,0.2); color:#d97706; border-radius:50%;">3</span>
+                                        {% else %}
+                                            <span style="padding-left:0.5rem;" class="muted">{{ loop.index }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('player_profile', player_id=p.player_id) }}" style="display:flex; align-items:center; gap:0.75rem;">
+                                            <img src="{{ p.avatar_url }}" alt="avatar" style="width: 2rem; height: 2rem; border-radius: 50%; border: 1px solid var(--border-card);">
+                                            <div>
+                                                <span class="bold highlight">{{ p.name }}</span>
+                                                {% if p.is_keeper %}<span class="badge" style="background:rgba(234,179,8,0.15); color:#eab308; font-size:0.7rem; margin-left:0.25rem;">WK</span>{% endif %}
+                                            </div>
+                                        </a>
+                                    </td>
+                                    <td class="muted">{{ p.team_name }}</td>
+                                    <td class="num bold">{{ p.matches_fielded }}</td>
+                                    <td class="num">{{ p.total_points }}</td>
+                                    <td class="num bold text-gold">{{ p.average_points }}</td>
+                                    <td class="num">
+                                        {% if p.has_penalty %}
+                                            <span class="match-card-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:0.7rem;" title="5% inactivity penalty (missed {{ p.inactivity_streak }} consecutive matches)">-5% Inactive</span>
+                                        {% else %}
+                                            <span class="match-card-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.7rem;">Active</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="num bold" style="font-size:1.15rem; color: #f59e0b;">
+                                        {{ p.rating }} <span class="muted" style="font-size:0.75rem; font-weight:normal;">/1000</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="muted" style="text-align:center; padding: 2rem;">No fielders qualified for the career leaderboard yet.</p>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

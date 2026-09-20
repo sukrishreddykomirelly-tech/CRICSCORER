@@ -10,11 +10,15 @@ def calculate_awards(match_state):
     winner_id = match_state.winner_id
     
     # 1. Fetch player team mappings
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT player_id, team_id FROM match_players WHERE match_id = ?", (match_id,))
-    player_teams = {row['player_id']: row['team_id'] for row in cursor.fetchall()}
-    conn.close()
+    player_teams = {}
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT player_id, team_id FROM match_players WHERE match_id = ?", (match_id,))
+        player_teams = {row['player_id']: row['team_id'] for row in cursor.fetchall()}
+        conn.close()
+    except Exception:
+        player_teams = {}
 
     # If no players are registered in match_players, use player_names mapping to current innings teams
     if not player_teams and match_state.innings:

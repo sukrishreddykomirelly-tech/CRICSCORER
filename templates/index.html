@@ -9,12 +9,104 @@
     <div class="hero-content">
         <h1 class="hero-title">Serious Cricket Scoring &amp; Statistics</h1>
         <p class="hero-subtitle">Record ball-by-ball actions, check real-time live scoreboards, compute dynamic player averages, and manage tournaments with automatic point tables.</p>
-        <div class="hero-btns">
+<div class="hero-btns">
             <a href="{{ url_for('match_create') }}" class="btn btn-primary"><i class="fa-solid fa-circle-play"></i> Start Scoring Match</a>
+            <a href="{{ url_for('rankings_page') }}" class="btn btn-primary" style="background: linear-gradient(135deg, #d97706, #b45309); border-color: #d97706;"><i class="fa-solid fa-ranking-star"></i> Career Rankings</a>
             <a href="{{ url_for('tournaments_list') }}" class="btn btn-secondary"><i class="fa-solid fa-trophy"></i> Tournaments</a>
         </div>
     </div>
 </div>
+
+<!-- Career Rankings Overview Cards -->
+{% if rankings and rankings.total_completed_matches > 0 %}
+<div style="margin-bottom: 2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+        <h2 class="card-title" style="margin:0;"><i class="fa-solid fa-ranking-star text-gold"></i> Career Leaders (MVP Ratings /1000)</h2>
+        <a href="{{ url_for('rankings_page') }}" class="btn btn-outline" style="font-size:0.8rem; padding: 0.35rem 0.75rem;">
+            View Full Rankings <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+        <!-- Batsmen Preview -->
+        <div class="premium-card" style="border-top: 3px solid var(--accent-emerald);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+                <h3 style="font-size:1rem; margin:0; font-weight:700;">🏏 BEST BATSMEN</h3>
+                <span class="muted" style="font-size:0.75rem;">Rating</span>
+            </div>
+            {% if rankings.batsmen %}
+                <div class="leaderboard-list">
+                    {% for p in rankings.batsmen[:3] %}
+                        <div class="leaderboard-item" style="padding: 0.4rem 0;">
+                            <div class="leaderboard-player-info">
+                                <span class="bold {% if loop.index == 1 %}text-gold{% else %}muted{% endif %}" style="min-width: 18px; font-size: 0.85rem;">#{{ loop.index }}</span>
+                                <img src="{{ p.avatar_url }}" alt="avatar" class="leaderboard-avatar" style="width: 1.75rem; height: 1.75rem;">
+                                <div>
+                                    <span class="leaderboard-name" style="font-size:0.88rem;"><a href="{{ url_for('player_profile', player_id=p.player_id) }}" class="highlight">{{ p.name }}</a></span>
+                                </div>
+                            </div>
+                            <div class="leaderboard-value" style="font-size: 0.9rem; color: #38bdf8; font-weight: 700;">{{ p.rating }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted" style="font-size:0.85rem;">No batsmen qualified yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Bowlers Preview -->
+        <div class="premium-card" style="border-top: 3px solid var(--accent-indigo);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+                <h3 style="font-size:1rem; margin:0; font-weight:700;">🎯 BEST BOWLERS</h3>
+                <span class="muted" style="font-size:0.75rem;">Rating</span>
+            </div>
+            {% if rankings.bowlers %}
+                <div class="leaderboard-list">
+                    {% for p in rankings.bowlers[:3] %}
+                        <div class="leaderboard-item" style="padding: 0.4rem 0;">
+                            <div class="leaderboard-player-info">
+                                <span class="bold {% if loop.index == 1 %}text-gold{% else %}muted{% endif %}" style="min-width: 18px; font-size: 0.85rem;">#{{ loop.index }}</span>
+                                <img src="{{ p.avatar_url }}" alt="avatar" class="leaderboard-avatar" style="width: 1.75rem; height: 1.75rem;">
+                                <div>
+                                    <span class="leaderboard-name" style="font-size:0.88rem;"><a href="{{ url_for('player_profile', player_id=p.player_id) }}" class="highlight">{{ p.name }}</a></span>
+                                </div>
+                            </div>
+                            <div class="leaderboard-value" style="font-size: 0.9rem; color: #a855f7; font-weight: 700;">{{ p.rating }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted" style="font-size:0.85rem;">No bowlers qualified yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Fielders Preview -->
+        <div class="premium-card" style="border-top: 3px solid var(--accent-gold);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+                <h3 style="font-size:1rem; margin:0; font-weight:700;">🧤 BEST FIELDERS</h3>
+                <span class="muted" style="font-size:0.75rem;">Rating</span>
+            </div>
+            {% if rankings.fielders %}
+                <div class="leaderboard-list">
+                    {% for p in rankings.fielders[:3] %}
+                        <div class="leaderboard-item" style="padding: 0.4rem 0;">
+                            <div class="leaderboard-player-info">
+                                <span class="bold {% if loop.index == 1 %}text-gold{% else %}muted{% endif %}" style="min-width: 18px; font-size: 0.85rem;">#{{ loop.index }}</span>
+                                <img src="{{ p.avatar_url }}" alt="avatar" class="leaderboard-avatar" style="width: 1.75rem; height: 1.75rem;">
+                                <div>
+                                    <span class="leaderboard-name" style="font-size:0.88rem;"><a href="{{ url_for('player_profile', player_id=p.player_id) }}" class="highlight">{{ p.name }}</a></span>
+                                </div>
+                            </div>
+                            <div class="leaderboard-value" style="font-size: 0.9rem; color: #f59e0b; font-weight: 700;">{{ p.rating }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted" style="font-size:0.85rem;">No fielders qualified yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="scoring-grid">
     <!-- Left Column: Matches -->

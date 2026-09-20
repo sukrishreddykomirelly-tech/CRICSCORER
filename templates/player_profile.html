@@ -30,6 +30,75 @@
         </div>
     </div>
 
+    <!-- Official Career Rankings Ratings -->
+    {% if p.rankings and p.rankings.total_completed_matches > 0 %}
+    <div class="premium-card" style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8)); border-top: 3px solid var(--accent-gold);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+            <h3 class="card-title" style="margin:0; border:none; padding:0;">
+                <i class="fa-solid fa-ranking-star text-gold"></i> Official Career Ratings (/1000)
+            </h3>
+            <a href="{{ url_for('rankings_page') }}" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
+                View Leaderboards <i class="fa-solid fa-chevron-right"></i>
+            </a>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <!-- Batting Rating -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: var(--radius-md); border: 1px solid rgba(16, 185, 129, 0.2);">
+                <div class="muted" style="font-size:0.8rem; margin-bottom:0.25rem;">🏏 BATTING RATING</div>
+                {% if p.rankings.batting %}
+                    <div style="display:flex; align-items:baseline; gap:0.5rem;">
+                        <span class="bold" style="font-size:1.6rem; color:#38bdf8;">{{ p.rankings.batting.rating }}</span>
+                        <span class="muted" style="font-size:0.8rem;">/1000</span>
+                        <span class="bold text-emerald" style="margin-left:auto; font-size:0.95rem;">Rank #{{ p.rankings.batting.rank }}</span>
+                    </div>
+                    <div class="muted" style="font-size:0.75rem; margin-top:0.35rem;">
+                        Avg MVP: {{ p.rankings.batting.average_points }} ({{ p.rankings.batting.matches_batted }} inn)
+                        {% if p.rankings.batting.has_penalty %}<span class="text-danger"> (-5% inactive)</span>{% endif %}
+                    </div>
+                {% else %}
+                    <div class="muted" style="font-size:0.9rem;">Unranked / Ineligible</div>
+                {% endif %}
+            </div>
+
+            <!-- Bowling Rating -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: var(--radius-md); border: 1px solid rgba(99, 102, 241, 0.2);">
+                <div class="muted" style="font-size:0.8rem; margin-bottom:0.25rem;">🎯 BOWLING RATING</div>
+                {% if p.rankings.bowling %}
+                    <div style="display:flex; align-items:baseline; gap:0.5rem;">
+                        <span class="bold" style="font-size:1.6rem; color:#a855f7;">{{ p.rankings.bowling.rating }}</span>
+                        <span class="muted" style="font-size:0.8rem;">/1000</span>
+                        <span class="bold text-indigo" style="margin-left:auto; font-size:0.95rem;">Rank #{{ p.rankings.bowling.rank }}</span>
+                    </div>
+                    <div class="muted" style="font-size:0.75rem; margin-top:0.35rem;">
+                        Avg MVP: {{ p.rankings.bowling.average_points }} ({{ p.rankings.bowling.matches_bowled }} inn)
+                        {% if p.rankings.bowling.has_penalty %}<span class="text-danger"> (-5% inactive)</span>{% endif %}
+                    </div>
+                {% else %}
+                    <div class="muted" style="font-size:0.9rem;">Unranked / Ineligible</div>
+                {% endif %}
+            </div>
+
+            <!-- Fielding Rating -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: var(--radius-md); border: 1px solid rgba(245, 158, 11, 0.2);">
+                <div class="muted" style="font-size:0.8rem; margin-bottom:0.25rem;">🧤 FIELDING RATING</div>
+                {% if p.rankings.fielding %}
+                    <div style="display:flex; align-items:baseline; gap:0.5rem;">
+                        <span class="bold" style="font-size:1.6rem; color:#f59e0b;">{{ p.rankings.fielding.rating }}</span>
+                        <span class="muted" style="font-size:0.8rem;">/1000</span>
+                        <span class="bold text-gold" style="margin-left:auto; font-size:0.95rem;">Rank #{{ p.rankings.fielding.rank }}</span>
+                    </div>
+                    <div class="muted" style="font-size:0.75rem; margin-top:0.35rem;">
+                        Avg MVP: {{ p.rankings.fielding.average_points }} ({{ p.rankings.fielding.matches_fielded }} m)
+                        {% if p.rankings.fielding.has_penalty %}<span class="text-danger"> (-5% inactive)</span>{% endif %}
+                    </div>
+                {% else %}
+                    <div class="muted" style="font-size:0.9rem;">Unranked / Ineligible</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Career Statistics -->
     <div class="scoring-grid">
         <!-- Batting Stats Card -->

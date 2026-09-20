@@ -3,6 +3,12 @@ from postgres_db import ensure_postgres_schema, get_postgres_connection
 from scoring import MatchState, InningsState
 
 
+def get_player_rankings(conn=None):
+    """Calculate and return career player rankings."""
+    from rankings import calculate_player_rankings
+    return calculate_player_rankings(conn=conn)
+
+
 def get_db_connection():
     """Return a PostgreSQL connection; SQLite fallback is intentionally disabled."""
     return get_postgres_connection()
@@ -719,6 +725,19 @@ def get_player_profile(player_id):
     teams_list = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
+
+    # 6. Career Rankings Summary
+    try:
+        from rankings import get_player_career_ranking_summary
+        ranking_summary = get_player_career_ranking_summary(player_id)
+    except Exception:
+        ranking_summary = {
+            "batting": None,
+            "bowling": None,
+            "fielding": None,
+            "total_completed_matches": 0,
+            "min_participation": 0
+        }
     
     return {
         "info": player_info,
@@ -726,7 +745,8 @@ def get_player_profile(player_id):
         "bowling": bowling_stats,
         "fielding": fielding_stats,
         "recent": recent_performances,
-        "teams": teams_list
+        "teams": teams_list,
+        "rankings": ranking_summary
     }
 
 

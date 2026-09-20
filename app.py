@@ -339,6 +339,19 @@ def index():
     cursor.execute("SELECT id, name FROM tournaments ORDER BY id DESC LIMIT 5")
     tournaments = [dict(row) for row in cursor.fetchall()]
     conn.close()
+
+    # Calculate career rankings
+    try:
+        rankings = database.get_player_rankings()
+    except Exception as e:
+        print(f"Error fetching rankings: {e}")
+        rankings = {
+            "total_completed_matches": 0,
+            "min_participation": 0,
+            "batsmen": [],
+            "bowlers": [],
+            "fielders": []
+        }
     
     return render_template(
         "index.html",
@@ -346,8 +359,32 @@ def index():
         recent_matches=recent_matches,
         players=players,
         teams=teams,
-        tournaments=tournaments
+        tournaments=tournaments,
+        rankings=rankings
     )
+
+@app.route('/rankings')
+def rankings_page():
+    try:
+        rankings = database.get_player_rankings()
+    except Exception as e:
+        print(f"Error fetching rankings: {e}")
+        rankings = {
+            "total_completed_matches": 0,
+            "min_participation": 0,
+            "batsmen": [],
+            "bowlers": [],
+            "fielders": []
+        }
+    return render_template("rankings.html", rankings=rankings)
+
+@app.route('/api/rankings')
+def api_rankings():
+    try:
+        rankings = database.get_player_rankings()
+        return jsonify({"success": True, "data": rankings})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/search')
 def search():
