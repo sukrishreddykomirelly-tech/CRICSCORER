@@ -467,7 +467,7 @@ def team_profile(team_id):
         WHERE id NOT IN (SELECT player_id FROM team_players WHERE team_id = ?)
         ORDER BY name
     """, (team_id,))
-    available_players = cursor.fetchall()
+    available_players = [dict(row) for row in cursor.fetchall()]
     conn.close()
     
     return render_template("team_profile.html", t=team_data, available_players=available_players)

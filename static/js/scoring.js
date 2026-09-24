@@ -83,6 +83,78 @@ const btnStartInnings2 = document.getElementById("btn-start-innings2");
 const matchCompletedContainer = document.getElementById("match-completed-container");
 const matchResultText = document.getElementById("match-completed-result");
 
+// Scoring Overlay & Submission Lock
+const scoringOverlay = document.getElementById("scoring-processing-overlay");
+const scoringOverlayTitle = document.getElementById("scoring-overlay-title");
+const scoringOverlaySubtitle = document.getElementById("scoring-overlay-subtitle");
+let isScoringInProgress = false;
+
+function showScoringOverlay(title = "Scoring ball...", subtitle = "Please wait...") {
+    if (isScoringInProgress) return false;
+    isScoringInProgress = true;
+    
+    if (scoringOverlayTitle) scoringOverlayTitle.innerText = title;
+    if (scoringOverlaySubtitle) scoringOverlaySubtitle.innerText = subtitle;
+    if (scoringOverlay) scoringOverlay.style.display = "flex";
+    
+    // Disable scoring controls to prevent double submissions
+    runsBtns.forEach(btn => { btn.disabled = true; });
+    extraBtns.forEach(btn => { btn.disabled = true; });
+    if (btnWicket) btnWicket.disabled = true;
+    if (btnUndo) btnUndo.disabled = true;
+    const btnSwap = document.getElementById("btn-swap-batsmen");
+    if (btnSwap) btnSwap.disabled = true;
+    if (btnManageSquad) btnManageSquad.disabled = true;
+    
+    return true;
+}
+
+function hideScoringOverlay() {
+    isScoringInProgress = false;
+    if (scoringOverlay) scoringOverlay.style.display = "none";
+    
+    // Re-enable scoring controls
+    runsBtns.forEach(btn => { btn.disabled = false; });
+    extraBtns.forEach(btn => { btn.disabled = false; });
+    if (btnWicket) btnWicket.disabled = false;
+    if (btnUndo) btnUndo.disabled = false;
+    const btnSwap = document.getElementById("btn-swap-batsmen");
+    if (btnSwap) btnSwap.disabled = false;
+    if (btnManageSquad) btnManageSquad.disabled = false;
+}
+
+function showScoringError(message = "Unable to save ball. Please check your connection and try again.") {
+    const container = document.getElementById("career-stats-toast-container");
+    if (!container) {
+        alert(message);
+        return;
+    }
+    
+    const toast = document.createElement("div");
+    toast.className = "career-toast premium-card";
+    toast.style.cssText = "width: 320px; max-width: calc(100vw - 2rem); display: flex; flex-direction: column; gap: 0.5rem; border-left: 4px solid var(--danger-red); animation: slideIn 0.3s ease-out; pointer-events: auto; position: relative; overflow: hidden; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); padding: 1rem; border-radius: var(--radius-md); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);";
+    
+    toast.innerHTML = `
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-red); font-size: 1.4rem;"></i>
+            <div>
+                <h4 style="margin: 0; font-size: 0.95rem; color: #fca5a5; font-weight: 700;">Scoring Error</h4>
+                <div style="font-size: 0.82rem; color: var(--text-primary); margin-top: 0.2rem; line-height: 1.3;">${message}</div>
+            </div>
+        </div>
+        <div style="position: absolute; bottom: 0; left: 0; height: 3px; background: var(--danger-red); animation: progressTimer 6s linear forwards; width: 100%;"></div>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = "slideOut 0.3s ease-in forwards";
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 5700);
+}
+
 // Initialize Scoring Page
 document.addEventListener("DOMContentLoaded", () => {
     loadMatchState();
@@ -90,19 +162,27 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function loadMatchState() {
-    fetch(`/api/match/${matchId}/state`)
-        .then(res => res.json())
+    return fetch(`/api/match/${matchId}/state`)
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+            return res.json();
+        })
         .then(data => {
             matchState = data;
             renderUI();
+            return data;
         })
-        .catch(err => console.error("Error loading match state:", err));
+        .catch(err => {
+            console.error("Error loading match state:", err);
+            throw err;
+        });
 }
 
 function setupEventListeners() {
     // Extras Toggles
     extraBtns.forEach(btn => {
         btn.addEventListener("click", () => {
+            if (isScoringInProgress) return;
             const extra = btn.getAttribute("data-extra");
             if (activeExtra === extra) {
                 activeExtra = null;
@@ -118,34 +198,50 @@ function setupEventListeners() {
     // Runs Keypad
     runsBtns.forEach(btn => {
         btn.addEventListener("click", () => {
+            if (isScoringInProgress) return;
             const runs = parseInt(btn.getAttribute("data-runs"));
             handleRunEntry(runs);
         });
     });
 
-    // Undo Wicket Button
+    // Undo Delivery Button
     btnUndo.addEventListener("click", () => {
+        if (isScoringInProgress) return;
         if (!confirm("Are you sure you want to undo the last delivery?")) return;
         
         const inn = getActiveInnings();
         if (!inn) return;
+        
+        if (!showScoringOverlay("Undoing delivery...", "Please wait...")) return;
         
         fetch(`/api/match/${matchId}/undo`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ innings_id: inn.innings_id })
         })
-        .then(res => res.json())
-        .then(() => {
+        .then(res => {
+            if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            if (data && data.error) throw new Error(data.error);
             activeExtra = null;
             extraBtns.forEach(b => b.classList.remove("selected"));
-            loadMatchState();
+            return loadMatchState();
         })
-        .catch(err => console.error(err));
+        .then(() => {
+            hideScoringOverlay();
+        })
+        .catch(err => {
+            console.error("Error undoing delivery:", err);
+            hideScoringOverlay();
+            showScoringError("Unable to undo delivery. Please check your connection.");
+        });
     });
 
     // Wicket Button -> Trigger Wicket Modal
     btnWicket.addEventListener("click", () => {
+        if (isScoringInProgress) return;
         openWicketModal();
     });
 
@@ -174,13 +270,17 @@ function setupEventListeners() {
     });
 
     btnConfirmWicket.addEventListener("click", () => {
+        if (isScoringInProgress) return;
         submitWicket();
     });
 
     // Confirm Bowler Change
     btnConfirmBowler.addEventListener("click", () => {
+        if (isScoringInProgress) return;
         if (!selectedNewBowlerId) return;
         const inn = getActiveInnings();
+        
+        showScoringOverlay("Selecting bowler...", "Please wait...");
         fetch(`/api/match/${matchId}/change_bowler`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -189,16 +289,27 @@ function setupEventListeners() {
                 bowler_id: selectedNewBowlerId
             })
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+            return res.json();
+        })
         .then(() => {
             closeBowlerModal();
-            loadMatchState();
+            return loadMatchState();
         })
-        .catch(err => console.error(err));
+        .then(() => {
+            hideScoringOverlay();
+        })
+        .catch(err => {
+            console.error(err);
+            hideScoringOverlay();
+            showScoringError("Unable to change bowler. Please try again.");
+        });
     });
 
     // Start Innings 2 Button
     btnStartInnings2.addEventListener("click", () => {
+        if (isScoringInProgress) return;
         const striker = parseInt(inn2StrikerSelect.value);
         const nonStriker = parseInt(inn2NonStrikerSelect.value);
         const bowler = parseInt(inn2BowlerSelect.value);
@@ -213,6 +324,7 @@ function setupEventListeners() {
             return;
         }
         
+        showScoringOverlay("Starting Innings 2...", "Please wait...");
         fetch(`/api/match/${matchId}/start_second_innings`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -222,12 +334,22 @@ function setupEventListeners() {
                 bowler_id: bowler
             })
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+            return res.json();
+        })
         .then(() => {
             inningsTransitionContainer.style.display = "none";
-            loadMatchState();
+            return loadMatchState();
         })
-        .catch(err => console.error(err));
+        .then(() => {
+            hideScoringOverlay();
+        })
+        .catch(err => {
+            console.error(err);
+            hideScoringOverlay();
+            showScoringError("Unable to start second innings. Please try again.");
+        });
     });
 }
 
@@ -237,6 +359,8 @@ function getActiveInnings() {
 }
 
 function handleRunEntry(runs) {
+    if (isScoringInProgress) return;
+    
     const inn = getActiveInnings();
     if (!inn) return;
 
@@ -263,6 +387,8 @@ function handleRunEntry(runs) {
         runs_batter = runs;
     }
 
+    if (!showScoringOverlay("Scoring ball...", "Please wait...")) return;
+
     // Determine current over count logic
     const over_number = Math.floor(inn.balls_bowled / 6) + 1;
     const ball_of_over = (inn.balls_bowled % 6) + 1;
@@ -275,7 +401,7 @@ function handleRunEntry(runs) {
         delivery_count: delivery_count,
         striker_id: inn.striker ? inn.striker.id : null,
         non_striker_id: inn.non_striker ? inn.non_striker.id : null,
-        bowler_id: inn.bowler.id,
+        bowler_id: inn.bowler ? inn.bowler.id : null,
         runs_batter: runs_batter,
         runs_extras: runs_extras,
         extra_type: extra_type,
@@ -285,7 +411,7 @@ function handleRunEntry(runs) {
         player_dismissed_id: null,
         fielder_id: null,
         is_bowler_wicket: 0,
-        commentary: generateCommentaryText(runs_batter, runs_extras, extra_type, false, null, inn.striker.name, inn.bowler.name)
+        commentary: generateCommentaryText(runs_batter, runs_extras, extra_type, false, null, inn.striker ? inn.striker.name : "", inn.bowler ? inn.bowler.name : "")
     };
 
     fetch(`/api/match/${matchId}/delivery`, {
@@ -293,14 +419,25 @@ function handleRunEntry(runs) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(reqData)
     })
-    .then(res => res.json())
-    .then(() => {
+    .then(res => {
+        if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        if (data && data.error) throw new Error(data.error);
         // Reset extra toggles
         activeExtra = null;
         extraBtns.forEach(b => b.classList.remove("selected"));
-        loadMatchState();
+        return loadMatchState();
     })
-    .catch(err => console.error("Error submitting ball:", err));
+    .then(() => {
+        hideScoringOverlay();
+    })
+    .catch(err => {
+        console.error("Error submitting ball:", err);
+        hideScoringOverlay();
+        showScoringError("Unable to save ball. Please check your connection and try again.");
+    });
 }
 
 // Commentary text generator
@@ -432,6 +569,8 @@ function closeWicketModal() {
 }
 
 function submitWicket() {
+    if (isScoringInProgress) return;
+    
     const inn = getActiveInnings();
     if (!inn) return;
 
@@ -469,6 +608,9 @@ function submitWicket() {
         }
     }
 
+    closeWicketModal();
+    if (!showScoringOverlay("Scoring ball...", "Please wait...")) return;
+
     const over_number = Math.floor(inn.balls_bowled / 6) + 1;
     const ball_of_over = (inn.balls_bowled % 6) + 1;
     const delivery_count = inn.over_balls_log.length + 1;
@@ -503,14 +645,24 @@ function submitWicket() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(reqData)
     })
-    .then(res => res.json())
-    .then(() => {
-        closeWicketModal();
+    .then(res => {
+        if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        if (data && data.error) throw new Error(data.error);
         activeExtra = null;
         extraBtns.forEach(b => b.classList.remove("selected"));
-        loadMatchState();
+        return loadMatchState();
     })
-    .catch(err => console.error("Error submitting wicket:", err));
+    .then(() => {
+        hideScoringOverlay();
+    })
+    .catch(err => {
+        console.error("Error submitting wicket:", err);
+        hideScoringOverlay();
+        showScoringError("Unable to save wicket. Please check your connection and try again.");
+    });
 }
 
 // --- BOWLER CHANGE MODAL ---
@@ -579,33 +731,40 @@ function renderUI() {
     currentBowlerId = inn.bowler ? inn.bowler.id : null;
 
     // Check triggers for career stats popups (broadcasting logic)
-    // 1. Striker: show when they are facing their first ball
-    if (inn.striker && !shownStats.has(inn.striker.id + "_batsman")) {
+    // Keys are scoped per innings: id + "_role_inn" + inn.innings_number
+    const innNum = inn.innings_number || 1;
+
+    // 1. Striker: show when they are facing their first ball of this innings
+    if (inn.striker && !shownStats.has(`${inn.striker.id}_batsman_inn${innNum}`)) {
         const strikerScore = inn.batting_scorecard.find(b => Number(b.id) === Number(inn.striker.id));
         const strikerBalls = strikerScore ? strikerScore.balls : 0;
         if (strikerBalls === 0) {
             showCareerStatsPopup(inn.striker.id, "batsman");
-            shownStats.add(inn.striker.id + "_batsman");
+            shownStats.add(`${inn.striker.id}_batsman_inn${innNum}`);
         }
     }
 
-    // 2. Non-Striker: show immediately when they join after a wicket (meaning inn.balls_bowled > 0 and they are new to the crease)
-    if (inn.non_striker && !shownStats.has(inn.non_striker.id + "_batsman")) {
+    // 2. Non-Striker: show at start of innings or when they join the crease after a wicket
+    if (inn.non_striker && !shownStats.has(`${inn.non_striker.id}_batsman_inn${innNum}`)) {
         const nsScore = inn.batting_scorecard.find(b => Number(b.id) === Number(inn.non_striker.id));
         const nsBalls = nsScore ? nsScore.balls : 0;
-        if (nsBalls === 0 && inn.balls_bowled > 0 && !prevBatsmen.includes(inn.non_striker.id)) {
-            showCareerStatsPopup(inn.non_striker.id, "batsman");
-            shownStats.add(inn.non_striker.id + "_batsman");
+        if (nsBalls === 0) {
+            setTimeout(() => {
+                showCareerStatsPopup(inn.non_striker.id, "batsman");
+            }, 350);
+            shownStats.add(`${inn.non_striker.id}_batsman_inn${innNum}`);
         }
     }
 
-    // 3. Bowler: show when they are about to bowl their very first ball of the match
-    if (inn.bowler && !shownStats.has(inn.bowler.id + "_bowler")) {
+    // 3. Bowler: show when they are about to bowl their very first ball of this innings
+    if (inn.bowler && !shownStats.has(`${inn.bowler.id}_bowler_inn${innNum}`)) {
         const bowlerScore = inn.bowling_scorecard.find(b => Number(b.id) === Number(inn.bowler.id));
         const bowlerBalls = bowlerScore ? bowlerScore.balls : 0;
         if (bowlerBalls === 0) {
-            showCareerStatsPopup(inn.bowler.id, "bowler");
-            shownStats.add(inn.bowler.id + "_bowler");
+            setTimeout(() => {
+                showCareerStatsPopup(inn.bowler.id, "bowler");
+            }, 700);
+            shownStats.add(`${inn.bowler.id}_bowler_inn${innNum}`);
         }
     }
 
@@ -781,26 +940,38 @@ function renderMatchCompleted() {
 const btnSwapBatsmen = document.getElementById("btn-swap-batsmen");
 if (btnSwapBatsmen) {
     btnSwapBatsmen.addEventListener("click", () => {
+        if (isScoringInProgress) return;
         if (!matchState) return;
         const inn = getActiveInnings();
         if (!inn || !inn.striker || !inn.non_striker) return;
         
+        showScoringOverlay("Swapping strike...", "Please wait...");
         fetch(`/api/match/${matchId}/change_batsman`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                innings_id: inningsId,
+                innings_id: inn.innings_id,
                 striker_id: inn.non_striker.id,
                 non_striker_id: inn.striker.id
             })
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+            return res.json();
+        })
         .then(data => {
             if (data.success) {
-                loadMatchState();
+                return loadMatchState();
             }
         })
-        .catch(err => console.error("Error swapping batsmen:", err));
+        .then(() => {
+            hideScoringOverlay();
+        })
+        .catch(err => {
+            console.error("Error swapping batsmen:", err);
+            hideScoringOverlay();
+            showScoringError("Unable to swap batsmen. Please try again.");
+        });
     });
 }
 

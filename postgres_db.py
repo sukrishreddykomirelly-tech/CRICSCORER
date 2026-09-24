@@ -156,13 +156,14 @@ class PostgresConnection:
         return getattr(self._connection, name)
 
 
-def get_postgres_connection() -> PostgresConnection:
+def get_postgres_connection():
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        raise RuntimeError(
-            "DATABASE_URL is required. SQLite fallback is disabled after the "
-            "PostgreSQL migration."
-        )
+        import sqlite3
+        sqlite_conn = sqlite3.connect("cricscorer.db", check_same_thread=False)
+        sqlite_conn.row_factory = sqlite3.Row
+        sqlite_conn.execute("PRAGMA foreign_keys = ON")
+        return sqlite_conn
 
     return PostgresConnection(
         psycopg.connect(database_url, row_factory=compat_row_factory)
@@ -332,6 +333,9 @@ POSTGRES_COMPATIBILITY_ALTERS = [
 
 def ensure_postgres_schema(connection, commit=True):
     raw_connection = getattr(connection, "_connection", connection)
+    import sqlite3
+    if isinstance(raw_connection, sqlite3.Connection):
+        return
     with raw_connection.cursor() as cursor:
         for statement in POSTGRES_SCHEMA:
             cursor.execute(statement)

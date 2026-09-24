@@ -66,8 +66,8 @@
                 {% if available_players %}
                 <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-card); padding-bottom: 1.5rem;">
                     <h4 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 0.75rem;"><i class="fa-solid fa-users text-indigo"></i> Add Existing Player to Team</h4>
-                    <form action="{{ url_for('team_add_player', team_id=t.info.id) }}" method="POST" style="display:flex; gap:0.5rem; align-items:flex-end;">
-                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                    <form action="{{ url_for('team_add_player', team_id=t.info.id) }}" method="POST" style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap: wrap;">
+                        <div class="form-group" style="flex:1 1 200px; margin-bottom:0;">
                             <label for="existing_player_id" style="font-size:0.8rem; display:block; margin-bottom: 0.25rem;">Select Player</label>
                             <select id="existing_player_id" name="existing_player_id" class="form-control" style="width: 100%;" required>
                                 <option value="">-- Choose Player --</option>
@@ -76,7 +76,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem; height: 36px; white-space: nowrap;"><i class="fa-solid fa-plus"></i> Add Player</button>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem; height: 38px; white-space: nowrap; flex: 0 0 auto;"><i class="fa-solid fa-plus"></i> Add Player</button>
                     </form>
                 </div>
                 {% endif %}

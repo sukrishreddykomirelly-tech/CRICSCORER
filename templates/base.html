@@ -33,7 +33,7 @@
                 <a href="{{ url_for('player_create') }}" class="nav-link"><i class="fa-solid fa-plus"></i> Player</a>
             </div>
             
-            <div>
+            <div class="nav-search-box">
                 <form action="{{ url_for('search') }}" method="GET" style="display:flex; gap:0.25rem;">
                     <input type="text" name="q" placeholder="Search..." class="form-control" style="padding: 0.4rem 0.8rem; font-size: 0.88rem; width: 150px; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
                     <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.8rem;"><i class="fa-solid fa-magnifying-glass"></i></button>

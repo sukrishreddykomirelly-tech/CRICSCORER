@@ -120,33 +120,40 @@ function updateLiveUI(state) {
         currentBowlerId = inn.bowler ? inn.bowler.id : null;
 
         // Check triggers for career stats popups (broadcasting logic)
-        // 1. Striker: show when they are facing their first ball
-        if (inn.striker && !shownStats.has(inn.striker.id + "_batsman")) {
+        // Keys are scoped per innings: id + "_role_inn" + inn.innings_number
+        const innNum = inn.innings_number || 1;
+
+        // 1. Striker: show when they are facing their first ball of this innings
+        if (inn.striker && !shownStats.has(`${inn.striker.id}_batsman_inn${innNum}`)) {
             const strikerScore = inn.batting_scorecard.find(b => Number(b.id) === Number(inn.striker.id));
             const strikerBalls = strikerScore ? strikerScore.balls : 0;
             if (strikerBalls === 0) {
                 showCareerStatsPopup(inn.striker.id, "batsman");
-                shownStats.add(inn.striker.id + "_batsman");
+                shownStats.add(`${inn.striker.id}_batsman_inn${innNum}`);
             }
         }
 
-        // 2. Non-Striker: show immediately when they join after a wicket (meaning inn.balls_bowled > 0 and they are new to the crease)
-        if (inn.non_striker && !shownStats.has(inn.non_striker.id + "_batsman")) {
+        // 2. Non-Striker: show at start of innings or when they join the crease after a wicket
+        if (inn.non_striker && !shownStats.has(`${inn.non_striker.id}_batsman_inn${innNum}`)) {
             const nsScore = inn.batting_scorecard.find(b => Number(b.id) === Number(inn.non_striker.id));
             const nsBalls = nsScore ? nsScore.balls : 0;
-            if (nsBalls === 0 && inn.balls_bowled > 0 && !prevBatsmen.includes(inn.non_striker.id)) {
-                showCareerStatsPopup(inn.non_striker.id, "batsman");
-                shownStats.add(inn.non_striker.id + "_batsman");
+            if (nsBalls === 0) {
+                setTimeout(() => {
+                    showCareerStatsPopup(inn.non_striker.id, "batsman");
+                }, 350);
+                shownStats.add(`${inn.non_striker.id}_batsman_inn${innNum}`);
             }
         }
 
-        // 3. Bowler: show when they are about to bowl their very first ball of the match
-        if (inn.bowler && !shownStats.has(inn.bowler.id + "_bowler")) {
+        // 3. Bowler: show when they are about to bowl their very first ball of this innings
+        if (inn.bowler && !shownStats.has(`${inn.bowler.id}_bowler_inn${innNum}`)) {
             const bowlerScore = inn.bowling_scorecard.find(b => Number(b.id) === Number(inn.bowler.id));
             const bowlerBalls = bowlerScore ? bowlerScore.balls : 0;
             if (bowlerBalls === 0) {
-                showCareerStatsPopup(inn.bowler.id, "bowler");
-                shownStats.add(inn.bowler.id + "_bowler");
+                setTimeout(() => {
+                    showCareerStatsPopup(inn.bowler.id, "bowler");
+                }, 700);
+                shownStats.add(`${inn.bowler.id}_bowler_inn${innNum}`);
             }
         }
         
