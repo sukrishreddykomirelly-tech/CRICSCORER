@@ -16,6 +16,15 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'cricscorer-super-secret-key-2026')
 app.register_blueprint(admin_bp)
 
+# Initialize database schema and default admin account on startup (WSGI & CLI safe)
+try:
+    database.init_db()
+    database.seed_db()
+    from admin import ensure_admin_table_seeded
+    ensure_admin_table_seeded()
+except Exception as _startup_e:
+    print(f"Startup DB init notice: {_startup_e}")
+
 @app.route('/health')
 def health_check():
     return jsonify({"status": "healthy"}), 200

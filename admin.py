@@ -19,6 +19,24 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 DEFAULT_ADMIN_USER = os.environ.get("ADMIN_USERNAME", "admin")
 DEFAULT_ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin123")
 
+_admin_db_ready = False
+
+def ensure_admin_db_ready():
+    """Ensure that the database schema and default admin account exist."""
+    global _admin_db_ready
+    if not _admin_db_ready:
+        try:
+            database.init_db()
+            ensure_admin_table_seeded()
+            _admin_db_ready = True
+        except Exception as e:
+            print(f"Error initializing admin DB: {e}")
+
+
+@admin_bp.before_request
+def admin_before_request():
+    ensure_admin_db_ready()
+
 
 # --- AUTHENTICATION HELPERS ---
 
@@ -38,8 +56,7 @@ def ensure_admin_table_seeded():
             conn.commit()
         conn.close()
     except Exception as e:
-        # Schema might not be initialized yet
-        pass
+        print(f"Notice during admin table seeding: {e}")
 
 
 def admin_required(f):
@@ -61,7 +78,7 @@ def log_admin_action(action, target_type=None, target_id=None, details=None, res
         cursor.execute("""
             INSERT INTO admin_audit_logs (action, target_type, target_id, details, admin_username, result)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (action, target_type, target_id, str(details or ''), username, result))
+        """, (action, target_type, str(target_id) if target_id is not None else None, str(details or ''), username, result))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -81,31 +98,34 @@ def trigger_live_update(match_id):
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    ensure_admin_db_ready()
+
     if session.get('admin_logged_in'):
         return redirect(url_for('admin.dashboard'))
-
-    ensure_admin_table_seeded()
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM admin_users WHERE username = ?", (username,))
-        user = cursor.fetchone()
-        conn.close()
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM admin_users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            conn.close()
 
-        if user and check_password_hash(user['password_hash'], password):
-            session['admin_logged_in'] = True
-            session['admin_user'] = user['username']
-            session['admin_id'] = user['id']
-            log_admin_action("admin_login", "admin_users", user['id'], f"Logged in from {request.remote_addr}")
-            flash(f"Welcome back, {user['username']}!", "success")
-            next_url = request.args.get('next')
-            return redirect(next_url or url_for('admin.dashboard'))
-        else:
-            flash("Invalid admin username or password.", "danger")
+            if user and check_password_hash(user['password_hash'], password):
+                session['admin_logged_in'] = True
+                session['admin_user'] = user['username']
+                session['admin_id'] = user['id']
+                log_admin_action("admin_login", "admin_users", user['id'], f"Logged in from {request.remote_addr}")
+                flash(f"Welcome back, {user['username']}!", "success")
+                next_url = request.args.get('next')
+                return redirect(next_url or url_for('admin.dashboard'))
+            else:
+                flash("Invalid admin username or password.", "danger")
+        except Exception as e:
+            flash(f"Database error during login: {e}", "danger")
 
     return render_template('admin/login.html')
 
@@ -127,86 +147,145 @@ def logout():
 @admin_bp.route('/dashboard')
 @admin_required
 def dashboard():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    ensure_admin_db_ready()
 
-    # System metrics
-    cursor.execute("SELECT COUNT(*) FROM players")
-    total_players = cursor.fetchone()[0]
+    total_players = 0
+    total_teams = 0
+    total_tournaments = 0
+    total_matches = 0
+    completed_matches = 0
+    live_matches_count = 0
+    upcoming_matches = 0
+    total_innings = 0
+    total_deliveries = 0
+    total_runs = 0
+    total_wickets = 0
+    live_matches = []
+    recent_logs = []
+    recent_matches = []
 
-    cursor.execute("SELECT COUNT(*) FROM teams")
-    total_teams = cursor.fetchone()[0]
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM tournaments")
-    total_tournaments = cursor.fetchone()[0]
+        # System metrics
+        try:
+            cursor.execute("SELECT COUNT(*) FROM players")
+            total_players = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    cursor.execute("SELECT COUNT(*) FROM matches")
-    total_matches = cursor.fetchone()[0]
+        try:
+            cursor.execute("SELECT COUNT(*) FROM teams")
+            total_teams = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    cursor.execute("SELECT COUNT(*) FROM matches WHERE status = 'completed'")
-    completed_matches = cursor.fetchone()[0]
+        try:
+            cursor.execute("SELECT COUNT(*) FROM tournaments")
+            total_tournaments = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    cursor.execute("SELECT COUNT(*) FROM matches WHERE status IN ('live', 'toss_done')")
-    live_matches_count = cursor.fetchone()[0]
+        try:
+            cursor.execute("SELECT COUNT(*) FROM matches")
+            total_matches = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    cursor.execute("SELECT COUNT(*) FROM matches WHERE status = 'scheduled'")
-    upcoming_matches = cursor.fetchone()[0]
+        try:
+            cursor.execute("SELECT COUNT(*) FROM matches WHERE status = 'completed'")
+            completed_matches = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    cursor.execute("SELECT COUNT(*) FROM innings")
-    total_innings = cursor.fetchone()[0]
+        try:
+            cursor.execute("SELECT COUNT(*) FROM matches WHERE status IN ('live', 'toss_done')")
+            live_matches_count = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    cursor.execute("SELECT COUNT(*) FROM deliveries")
-    total_deliveries = cursor.fetchone()[0]
+        try:
+            cursor.execute("SELECT COUNT(*) FROM matches WHERE status = 'scheduled'")
+            upcoming_matches = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    # Aggregate runs & wickets across deliveries
-    cursor.execute("SELECT COALESCE(SUM(runs_batter + runs_extras), 0), COALESCE(SUM(is_wicket), 0) FROM deliveries")
-    runs_row = cursor.fetchone()
-    total_runs = runs_row[0] if runs_row else 0
-    total_wickets = runs_row[1] if runs_row else 0
+        try:
+            cursor.execute("SELECT COUNT(*) FROM innings")
+            total_innings = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    # Live matches with rich info
-    cursor.execute("""
-        SELECT m.id, m.ground, m.match_format, m.status, m.overs_limit, m.current_innings_id,
-               t1.name AS team1_name, t2.name AS team2_name,
-               t1.logo_url AS team1_logo, t2.logo_url AS team2_logo,
-               i1.id AS i1_id, i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
-               i2.id AS i2_id, i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls,
-               i_curr.current_striker_id, i_curr.current_non_striker_id, i_curr.current_bowler_id,
-               p1.name AS striker_name, p2.name AS non_striker_name, pb.name AS bowler_name
-        FROM matches m
-        JOIN teams t1 ON m.team1_id = t1.id
-        JOIN teams t2 ON m.team2_id = t2.id
-        LEFT JOIN innings i1 ON m.id = i1.match_id AND i1.innings_number = 1
-        LEFT JOIN innings i2 ON m.id = i2.match_id AND i2.innings_number = 2
-        LEFT JOIN innings i_curr ON m.current_innings_id = i_curr.id
-        LEFT JOIN players p1 ON i_curr.current_striker_id = p1.id
-        LEFT JOIN players p2 ON i_curr.current_non_striker_id = p2.id
-        LEFT JOIN players pb ON i_curr.current_bowler_id = pb.id
-        WHERE m.status IN ('live', 'toss_done')
-        ORDER BY m.id DESC
-    """)
-    live_matches = [dict(row) for row in cursor.fetchall()]
+        try:
+            cursor.execute("SELECT COUNT(*) FROM deliveries")
+            total_deliveries = cursor.fetchone()[0]
+        except Exception:
+            pass
 
-    # Recent Audit Logs
-    cursor.execute("""
-        SELECT * FROM admin_audit_logs ORDER BY timestamp DESC LIMIT 8
-    """)
-    recent_logs = [dict(row) for row in cursor.fetchall()]
+        # Aggregate runs & wickets across deliveries
+        try:
+            cursor.execute("SELECT COALESCE(SUM(runs_batter + runs_extras), 0), COALESCE(SUM(is_wicket), 0) FROM deliveries")
+            runs_row = cursor.fetchone()
+            total_runs = runs_row[0] if runs_row else 0
+            total_wickets = runs_row[1] if runs_row else 0
+        except Exception:
+            pass
 
-    # Recent completed matches
-    cursor.execute("""
-        SELECT m.id, m.ground, m.match_format, m.status, m.result_margin, m.match_date,
-               t1.name AS team1_name, t2.name AS team2_name,
-               tw.name AS winner_name
-        FROM matches m
-        JOIN teams t1 ON m.team1_id = t1.id
-        JOIN teams t2 ON m.team2_id = t2.id
-        LEFT JOIN teams tw ON m.winner_id = tw.id
-        ORDER BY m.id DESC LIMIT 5
-    """)
-    recent_matches = [dict(row) for row in cursor.fetchall()]
+        # Live matches with rich info
+        try:
+            cursor.execute("""
+                SELECT m.id, m.ground, m.match_format, m.status, m.overs_limit, m.current_innings_id,
+                       t1.name AS team1_name, t2.name AS team2_name,
+                       t1.logo_url AS team1_logo, t2.logo_url AS team2_logo,
+                       i1.id AS i1_id, i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
+                       i2.id AS i2_id, i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls,
+                       i_curr.current_striker_id, i_curr.current_non_striker_id, i_curr.current_bowler_id,
+                       p1.name AS striker_name, p2.name AS non_striker_name, pb.name AS bowler_name
+                FROM matches m
+                JOIN teams t1 ON m.team1_id = t1.id
+                JOIN teams t2 ON m.team2_id = t2.id
+                LEFT JOIN innings i1 ON m.id = i1.match_id AND i1.innings_number = 1
+                LEFT JOIN innings i2 ON m.id = i2.match_id AND i2.innings_number = 2
+                LEFT JOIN innings i_curr ON m.current_innings_id = i_curr.id
+                LEFT JOIN players p1 ON i_curr.current_striker_id = p1.id
+                LEFT JOIN players p2 ON i_curr.current_non_striker_id = p2.id
+                LEFT JOIN players pb ON i_curr.current_bowler_id = pb.id
+                WHERE m.status IN ('live', 'toss_done')
+                ORDER BY m.id DESC
+            """)
+            live_matches = [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            print(f"Error fetching live matches for dashboard: {e}")
 
-    conn.close()
+        # Recent Audit Logs
+        try:
+            cursor.execute("""
+                SELECT * FROM admin_audit_logs ORDER BY timestamp DESC LIMIT 8
+            """)
+            recent_logs = [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            print(f"Error fetching audit logs for dashboard: {e}")
+
+        # Recent completed matches
+        try:
+            cursor.execute("""
+                SELECT m.id, m.ground, m.match_format, m.status, m.result_margin, m.match_date,
+                       t1.name AS team1_name, t2.name AS team2_name,
+                       tw.name AS winner_name
+                FROM matches m
+                JOIN teams t1 ON m.team1_id = t1.id
+                JOIN teams t2 ON m.team2_id = t2.id
+                LEFT JOIN teams tw ON m.winner_id = tw.id
+                ORDER BY m.id DESC LIMIT 5
+            """)
+            recent_matches = [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            print(f"Error fetching recent matches for dashboard: {e}")
+
+        conn.close()
+    except Exception as e:
+        print(f"Dashboard database connection error: {e}")
 
     metrics = {
         "players": total_players,
