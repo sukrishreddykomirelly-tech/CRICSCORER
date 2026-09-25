@@ -15,10 +15,42 @@ from psycopg.rows import tuple_row
 class CompatRow(dict):
     """A row that supports both sqlite3.Row-style key and index access."""
 
+    def __init__(self, columns=None, values=None):
+        if isinstance(columns, dict):
+            super().__init__(columns)
+            self._columns = tuple(columns.keys())
+            self._values = tuple(columns.values())
+        elif columns is not None and values is not None:
+            self._columns = tuple(columns)
+            self._values = tuple(values)
+            super().__init__(zip(self._columns, self._values))
+        else:
+            super().__init__()
+            self._columns = ()
+            self._values = ()
+
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, int):
-            return list(self.values())[key]
-        return super().__getitem__(key)
+            if 0 <= key < len(self._values):
+                return self._values[key]
+            elif -len(self._values) <= key < 0:
+                return self._values[key]
+            # Fallback to values list if _values was not set
+            dict_vals = list(self.values())
+            if 0 <= key < len(dict_vals):
+                return dict_vals[key]
+            return None
+        return super().get(key)
+
+    def get(self, key: Any, default: Any = None) -> Any:
+        if isinstance(key, int):
+            if 0 <= key < len(self._values):
+                return self._values[key]
+            return default
+        return super().get(key, default)
+
+    def keys(self):
+        return self._columns if self._columns else super().keys()
 
 
 def compat_row_factory(cursor):
@@ -28,7 +60,8 @@ def compat_row_factory(cursor):
     columns = [column.name for column in cursor.description]
 
     def make_row(values: Iterable[Any]) -> CompatRow:
-        return CompatRow(zip(columns, values))
+        val_tuple = tuple(values) if values is not None else ()
+        return CompatRow(columns, val_tuple)
 
     return make_row
 
