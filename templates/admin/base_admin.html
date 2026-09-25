@@ -1,0 +1,682 @@
+<!-- templates/admin/base_admin.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Admin Panel - CricScorer{% endblock %}</title>
+    
+    <!-- CSS and Fonts -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=1.2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --admin-sidebar-width: 260px;
+            --admin-header-height: 64px;
+            --admin-bg-dark: #090d16;
+            --admin-card-bg: rgba(17, 24, 39, 0.85);
+            --admin-border: rgba(255, 255, 255, 0.08);
+            --admin-primary: #10b981;
+            --admin-primary-hover: #059669;
+            --admin-gold: #fbbf24;
+            --admin-indigo: #6366f1;
+            --admin-danger: #ef4444;
+        }
+
+        body.admin-body {
+            background: var(--admin-bg-dark);
+            background-image: radial-gradient(circle at 50% 0%, #172033 0%, #090d16 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        .admin-layout {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* --- SIDEBAR --- */
+        .admin-sidebar {
+            width: var(--admin-sidebar-width);
+            background: rgba(13, 19, 33, 0.95);
+            border-right: 1px solid var(--admin-border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .admin-brand {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--admin-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .admin-brand a {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 800;
+            font-size: 1.15rem;
+            letter-spacing: 0.5px;
+            color: #f8fafc;
+        }
+
+        .admin-badge {
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--admin-gold);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .admin-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .admin-nav-category {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            padding: 0.75rem 0.75rem 0.25rem;
+            letter-spacing: 0.75px;
+        }
+
+        .admin-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.85rem;
+            color: #94a3b8;
+            font-size: 0.88rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .admin-nav-link:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .admin-nav-link.active {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.12);
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .admin-nav-link i {
+            width: 20px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .admin-sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--admin-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* --- MAIN WRAPPER --- */
+        .admin-main-wrapper {
+            flex: 1;
+            margin-left: var(--admin-sidebar-width);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            width: calc(100% - var(--admin-sidebar-width));
+        }
+
+        /* --- HEADER --- */
+        .admin-header {
+            height: var(--admin-header-height);
+            background: rgba(13, 19, 33, 0.85);
+            border-bottom: 1px solid var(--admin-border);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 900;
+        }
+
+        .admin-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .mobile-sidebar-toggle {
+            display: none;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .admin-search-form {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .admin-search-input {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--admin-border);
+            border-radius: 8px;
+            padding: 0.45rem 0.85rem 0.45rem 2.2rem;
+            color: #f8fafc;
+            font-size: 0.85rem;
+            width: 240px;
+            transition: all 0.2s ease;
+        }
+
+        .admin-search-input:focus {
+            outline: none;
+            border-color: var(--admin-primary);
+            background: rgba(255, 255, 255, 0.08);
+            width: 320px;
+        }
+
+        .admin-search-icon {
+            position: absolute;
+            left: 0.75rem;
+            color: #64748b;
+            font-size: 0.85rem;
+            pointer-events: none;
+        }
+
+        .admin-header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .admin-user-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            border: 1px solid var(--admin-border);
+            font-size: 0.82rem;
+            color: #cbd5e1;
+        }
+
+        /* --- CONTENT AREA --- */
+        .admin-content {
+            flex: 1;
+            padding: 1.5rem;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* --- CARDS & PANELS --- */
+        .admin-card {
+            background: var(--admin-card-bg);
+            border: 1px solid var(--admin-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .admin-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--admin-border);
+        }
+
+        .admin-card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* --- RESPONSIVE TABLE WRAPPER --- */
+        .table-responsive-admin {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--admin-border);
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            text-align: left;
+        }
+
+        .admin-table th {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: #94a3b8;
+            border-bottom: 1px solid var(--admin-border);
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .admin-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #cbd5e1;
+            vertical-align: middle;
+        }
+
+        .admin-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: #f8fafc;
+        }
+
+        /* --- BUTTONS & PILLS --- */
+        .btn-admin {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-admin-primary {
+            background: #10b981;
+            color: #064e3b;
+        }
+        .btn-admin-primary:hover {
+            background: #059669;
+            color: #ffffff;
+        }
+
+        .btn-admin-indigo {
+            background: #6366f1;
+            color: #ffffff;
+        }
+        .btn-admin-indigo:hover {
+            background: #4f46e5;
+        }
+
+        .btn-admin-gold {
+            background: #fbbf24;
+            color: #78350f;
+        }
+        .btn-admin-gold:hover {
+            background: #d97706;
+            color: #ffffff;
+        }
+
+        .btn-admin-danger {
+            background: #ef4444;
+            color: #ffffff;
+        }
+        .btn-admin-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-admin-outline {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--admin-border);
+            color: #cbd5e1;
+        }
+        .btn-admin-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f8fafc;
+        }
+
+        .btn-admin-sm {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.78rem;
+        }
+
+        /* --- FLASH ALERTS --- */
+        .admin-flash-container {
+            margin-bottom: 1.25rem;
+        }
+
+        .admin-alert {
+            padding: 0.85rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            font-size: 0.88rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid transparent;
+        }
+
+        .admin-alert-success {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        .admin-alert-danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .admin-alert-warning {
+            background: rgba(251, 191, 36, 0.15);
+            border-color: rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+
+        .admin-alert-info {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #818cf8;
+        }
+
+        /* --- MODAL OVERLAY --- */
+        .admin-modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 1rem;
+        }
+
+        .admin-modal-box {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 480px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        /* --- MOBILE OVERLAY --- */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 950;
+        }
+
+        /* --- RESPONSIVE MEDIA QUERIES --- */
+        @media (max-width: 992px) {
+            .admin-sidebar {
+                transform: translateX(-100%);
+            }
+            .admin-sidebar.open {
+                transform: translateX(0);
+            }
+            .admin-main-wrapper {
+                margin-left: 0;
+                width: 100%;
+            }
+            .mobile-sidebar-toggle {
+                display: block;
+            }
+            .sidebar-overlay.active {
+                display: block;
+            }
+            .admin-search-input {
+                width: 160px;
+            }
+            .admin-search-input:focus {
+                width: 200px;
+            }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="admin-body">
+    <div class="admin-layout">
+        <!-- Sidebar Backdrop for Mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar" id="adminSidebar">
+            <div class="admin-brand">
+                <a href="{{ url_for('admin.dashboard') }}">
+                    <i class="fa-solid fa-shield-halved" style="color: var(--admin-gold);"></i>
+                    <span>CRIC<span style="color: var(--admin-primary);">ADMIN</span></span>
+                </a>
+                <span class="admin-badge">Control</span>
+            </div>
+
+            <nav class="admin-nav">
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="admin-nav-category">Entities &amp; Content</div>
+                <a href="{{ url_for('admin.matches_list') }}" class="admin-nav-link {% if 'matches' in request.endpoint or 'match_' in request.endpoint %}active{% endif %}">
+                    <i class="fa-solid fa-baseball-bat-ball"></i>
+                    <span>Matches</span>
+                </a>
+                <a href="{{ url_for('admin.tournaments_list') }}" class="admin-nav-link {% if 'tournaments' in request.endpoint %}active{% endif %}">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span>Tournaments</span>
+                </a>
+                <a href="{{ url_for('admin.teams_list') }}" class="admin-nav-link {% if 'teams' in request.endpoint %}active{% endif %}">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Teams &amp; Squads</span>
+                </a>
+                <a href="{{ url_for('admin.players_list') }}" class="admin-nav-link {% if 'players' in request.endpoint %}active{% endif %}">
+                    <i class="fa-solid fa-user-ninja"></i>
+                    <span>Players</span>
+                </a>
+
+                <div class="admin-nav-category">Intelligence &amp; Awards</div>
+                <a href="{{ url_for('admin.awards_list') }}" class="admin-nav-link {% if 'awards' in request.endpoint %}active{% endif %}">
+                    <i class="fa-solid fa-medal"></i>
+                    <span>Awards &amp; Overrides</span>
+                </a>
+                <a href="{{ url_for('admin.rankings_view') }}" class="admin-nav-link {% if request.endpoint == 'admin.rankings_view' %}active{% endif %}">
+                    <i class="fa-solid fa-ranking-star"></i>
+                    <span>Career Rankings</span>
+                </a>
+                <a href="{{ url_for('admin.inactivity_view') }}" class="admin-nav-link {% if request.endpoint == 'admin.inactivity_view' %}active{% endif %}">
+                    <i class="fa-solid fa-user-clock"></i>
+                    <span>Inactivity Streaks</span>
+                </a>
+
+                <div class="admin-nav-category">System &amp; Diagnostics</div>
+                <a href="{{ url_for('admin.data_health') }}" class="admin-nav-link {% if request.endpoint == 'admin.data_health' %}active{% endif %}">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                    <span>Data Health</span>
+                </a>
+                <a href="{{ url_for('admin.backups') }}" class="admin-nav-link {% if request.endpoint == 'admin.backups' %}active{% endif %}">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Backups &amp; Export</span>
+                </a>
+                <a href="{{ url_for('admin.audit_log') }}" class="admin-nav-link {% if request.endpoint == 'admin.audit_log' %}active{% endif %}">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Audit Log</span>
+                </a>
+
+                <div class="admin-nav-category">Quick Links</div>
+                <a href="{{ url_for('index') }}" class="admin-nav-link" target="_blank">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    <span>Public Scorer Site</span>
+                </a>
+            </nav>
+
+            <div class="admin-sidebar-footer">
+                <div style="font-size: 0.78rem; color: #64748b;">
+                    <div>CricScorer Engine v2.0</div>
+                    <div>PostgreSQL Active</div>
+                </div>
+                <a href="{{ url_for('admin.logout') }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Log out">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="admin-main-wrapper">
+            <!-- Header -->
+            <header class="admin-header">
+                <div class="admin-header-left">
+                    <button class="mobile-sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle navigation">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <form action="{{ url_for('admin.search') }}" method="GET" class="admin-search-form">
+                        <i class="fa-solid fa-magnifying-glass admin-search-icon"></i>
+                        <input type="text" name="q" placeholder="Global admin search..." class="admin-search-input" value="{{ request.args.get('q', '') }}">
+                    </form>
+                </div>
+
+                <div class="admin-header-right">
+                    <div class="admin-user-pill">
+                        <i class="fa-solid fa-user-shield" style="color: var(--admin-primary);"></i>
+                        <span>{{ session.get('admin_user', 'Admin') }}</span>
+                    </div>
+                    <a href="{{ url_for('admin.logout') }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                        <i class="fa-solid fa-power-off"></i>
+                        <span class="d-none d-md-inline">Logout</span>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Main Body -->
+            <main class="admin-content">
+                <!-- Flash Messages -->
+                <div class="admin-flash-container">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="admin-alert admin-alert-{{ category }}">
+                                    <div>
+                                        {% if category == 'success' %}
+                                            <i class="fa-solid fa-circle-check" style="margin-right: 0.5rem;"></i>
+                                        {% elif category == 'danger' %}
+                                            <i class="fa-solid fa-triangle-exclamation" style="margin-right: 0.5rem;"></i>
+                                        {% elif category == 'warning' %}
+                                            <i class="fa-solid fa-circle-exclamation" style="margin-right: 0.5rem;"></i>
+                                        {% else %}
+                                            <i class="fa-solid fa-circle-info" style="margin-right: 0.5rem;"></i>
+                                        {% endif %}
+                                        <span>{{ message }}</span>
+                                    </div>
+                                    <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; cursor:pointer; font-size:1.1rem;">&times;</button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Generic Confirmation Modal -->
+    <div class="admin-modal-backdrop" id="confirmModal">
+        <div class="admin-modal-box">
+            <h3 id="confirmModalTitle" style="color: #f8fafc; font-size: 1.15rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: var(--admin-danger);"></i>
+                <span>Confirm Destructive Action</span>
+            </h3>
+            <p id="confirmModalMessage" style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                Are you sure you want to proceed? This action cannot be undone.
+            </p>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn-admin btn-admin-outline" onclick="closeConfirmModal()">Cancel</button>
+                <button type="button" class="btn-admin btn-admin-danger" id="confirmModalActionBtn">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        // Global destructive action confirmation handler
+        let activeConfirmForm = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[data-confirm]').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const message = this.getAttribute('data-confirm') || 'Are you sure you want to proceed?';
+                    const form = this.closest('form');
+                    if (form) {
+                        activeConfirmForm = form;
+                        openConfirmModal(message, () => activeConfirmForm.submit());
+                    } else if (this.tagName === 'A' && this.href) {
+                        openConfirmModal(message, () => window.location.href = this.href);
+                    }
+                });
+            });
+        });
+
+        function openConfirmModal(message, onConfirm) {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmModalMessage').textContent = message;
+            const actionBtn = document.getElementById('confirmModalActionBtn');
+            actionBtn.onclick = function() {
+                modal.style.display = 'none';
+                if (typeof onConfirm === 'function') onConfirm();
+            };
+            modal.style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

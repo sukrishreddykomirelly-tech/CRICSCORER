@@ -1,0 +1,120 @@
+<!-- templates/admin/tournament_standings.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}{{ tournament.name }} Standings - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-ranking-star" style="color: var(--admin-gold); margin-right: 0.5rem;"></i> {{ tournament.name }} Standings
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Tournament leaderboard and Net Run Rate (NRR) calculations.</p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}" target="_blank" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Public Table
+        </a>
+        <a href="{{ url_for('admin.tournaments_list') }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> All Tournaments
+        </a>
+    </div>
+</div>
+
+<!-- Points Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden; margin-bottom: 1.5rem;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Pos</th>
+                    <th>Team</th>
+                    <th>Played (P)</th>
+                    <th>Won (W)</th>
+                    <th>Lost (L)</th>
+                    <th>Tied (T)</th>
+                    <th>NR</th>
+                    <th>Points (PTS)</th>
+                    <th>Net Run Rate (NRR)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if points_table %}
+                    {% for row in points_table %}
+                        <tr>
+                            <td style="font-weight: 700; color: {% if loop.index <= 2 %}var(--admin-gold){% else %}#64748b{% endif %};">
+                                {{ loop.index }}
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                    {% if row.logo_url %}
+                                        <img src="{{ row.logo_url }}" alt="{{ row.team_name }}" style="width: 26px; height: 26px; border-radius: 6px; object-fit: contain;">
+                                    {% endif %}
+                                    <span style="font-weight: 700; color: #f8fafc;">{{ row.team_name }}</span>
+                                </div>
+                            </td>
+                            <td>{{ row.played }}</td>
+                            <td style="color: #34d399; font-weight: 600;">{{ row.won }}</td>
+                            <td style="color: #f87171;">{{ row.lost }}</td>
+                            <td>{{ row.tied }}</td>
+                            <td>{{ row.nr }}</td>
+                            <td>
+                                <span style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 6px;">
+                                    {{ row.points }}
+                                </span>
+                            </td>
+                            <td style="font-weight: 600; color: {% if row.nrr >= 0 %}#34d399{% else %}#f87171{% endif %};">
+                                {{ '%+0.3f'|format(row.nrr) }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No teams registered or matches played in this tournament yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Matches in this Tournament -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-baseball-bat-ball" style="color: var(--admin-primary);"></i> Tournament Fixtures &amp; Results ({{ matches|length }})
+        </h2>
+    </div>
+
+    {% if matches %}
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            {% for m in matches %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--admin-border); border-radius: 8px;">
+                    <div>
+                        <div style="font-weight: 700; color: #f8fafc; font-size: 0.95rem;">
+                            {{ m.team1_name }} vs {{ m.team2_name }}
+                        </div>
+                        <div style="font-size: 0.78rem; color: #94a3b8;">
+                            {{ m.ground or 'Ground N/A' }} &bull; {{ m.match_date or 'Date N/A' }} &bull;
+                            <span style="color: #cbd5e1; font-weight: 600; text-transform: uppercase;">{{ m.status }}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.35rem;">
+                        <a href="{{ url_for('admin.match_detail', match_id=m.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                            <i class="fa-solid fa-gear"></i> Manage
+                        </a>
+                        <a href="{{ url_for('admin.match_deliveries', match_id=m.id) }}" class="btn-admin btn-admin-indigo btn-admin-sm">
+                            <i class="fa-solid fa-list-ol"></i> Balls
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p style="color: #64748b; font-size: 0.88rem; text-align: center; padding: 1.5rem;">No matches scheduled for this tournament.</p>
+    {% endif %}
+</div>
+{% endblock %}

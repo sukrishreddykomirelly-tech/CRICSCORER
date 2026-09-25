@@ -1,0 +1,91 @@
+<!-- templates/admin/team_form.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}{{ action_title }} - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h1 style="font-size: 1.35rem; font-weight: 800; color: #f8fafc;">
+            <i class="fa-solid fa-users-gear" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> {{ action_title }}
+        </h1>
+        <a href="{{ url_for('admin.teams_list') }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Teams
+        </a>
+    </div>
+
+    <div class="admin-card">
+        <form method="POST">
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Team Name <span style="color: var(--admin-danger);">*</span>
+                </label>
+                <input type="text" name="name" class="admin-search-input" style="width: 100%; padding-left: 1rem;" value="{{ team.name if team else '' }}" placeholder="e.g. Royal Challengers" required>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Logo URL (Optional)
+                </label>
+                <input type="url" name="logo_url" class="admin-search-input" style="width: 100%; padding-left: 1rem;" value="{{ team.logo_url if team else '' }}" placeholder="https://api.dicebear.com/7.x/identicon/svg?seed=TeamName">
+                <small style="color: #64748b; font-size: 0.75rem; margin-top: 0.25rem; display: block;">Leave blank to auto-generate a geometric vector badge.</small>
+            </div>
+
+            <!-- Squad Management Section -->
+            <div style="border-top: 1px solid var(--admin-border); padding-top: 1.25rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 700; color: #f8fafc;">Squad Player Selection</h3>
+                        <p style="color: #64748b; font-size: 0.78rem;">Select players who belong to this team squad. Modifying this list will NOT alter historical match scorecards.</p>
+                    </div>
+                    <span id="selectedCountBadge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">
+                        {{ squad_player_ids|length }} Selected
+                    </span>
+                </div>
+
+                <div style="margin-bottom: 0.75rem;">
+                    <input type="text" id="playerSearchInput" placeholder="Quick filter players list..." class="admin-search-input" style="width: 100%; padding-left: 1rem;" onkeyup="filterPlayerCheckboxes()">
+                </div>
+
+                <div style="max-height: 280px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--admin-border); border-radius: 8px; padding: 0.75rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem;" id="playerGrid">
+                    {% for p in all_players %}
+                        <label class="player-checkbox-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--admin-border); border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #cbd5e1;">
+                            <input type="checkbox" name="player_ids" value="{{ p.id }}" {% if p.id in squad_player_ids %}checked{% endif %} style="accent-color: var(--admin-primary); width: 16px; height: 16px;" onchange="updateSelectedCount()">
+                            <span class="player-name-text">{{ p.name }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--admin-border); padding-top: 1.25rem;">
+                <a href="{{ url_for('admin.teams_list') }}" class="btn-admin btn-admin-outline">Cancel</a>
+                <button type="submit" class="btn-admin btn-admin-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Team &amp; Squad
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function updateSelectedCount() {
+        const checked = document.querySelectorAll('input[name="player_ids"]:checked').length;
+        document.getElementById('selectedCountBadge').textContent = checked + ' Selected';
+    }
+
+    function filterPlayerCheckboxes() {
+        const query = document.getElementById('playerSearchInput').value.toLowerCase();
+        const items = document.querySelectorAll('.player-checkbox-item');
+        items.forEach(item => {
+            const name = item.querySelector('.player-name-text').textContent.toLowerCase();
+            if (name.includes(query)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

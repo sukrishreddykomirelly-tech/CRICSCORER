@@ -1,0 +1,143 @@
+<!-- templates/admin/players.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Player Management - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-user-ninja" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Player Management
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Manage player profiles, styles, team affiliations, and career performance.</p>
+    </div>
+
+    <a href="{{ url_for('admin.player_create') }}" class="btn-admin btn-admin-primary">
+        <i class="fa-solid fa-plus"></i> Add New Player
+    </a>
+</div>
+
+<!-- Search & Filter Bar -->
+<div class="admin-card" style="padding: 1rem; margin-bottom: 1.25rem;">
+    <form action="{{ url_for('admin.players_list') }}" method="GET" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search player by name..." class="admin-search-input" style="flex: 1; min-width: 200px; padding-left: 1rem;">
+        
+        <select name="role" class="admin-search-input" style="width: auto; padding-left: 0.75rem;">
+            <option value="">All Roles</option>
+            <option value="batter" {% if role_filter == 'batter' %}selected{% endif %}>Batters</option>
+            <option value="bowler" {% if role_filter == 'bowler' %}selected{% endif %}>Bowlers</option>
+            <option value="keeper" {% if role_filter == 'keeper' %}selected{% endif %}>Wicket Keepers</option>
+        </select>
+
+        <select name="team_id" class="admin-search-input" style="width: auto; padding-left: 0.75rem;">
+            <option value="">All Teams</option>
+            {% for t in all_teams %}
+                <option value="{{ t.id }}" {% if team_filter|string == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-filter"></i> Filter
+        </button>
+        {% if query or role_filter or team_filter %}
+            <a href="{{ url_for('admin.players_list') }}" class="btn-admin btn-admin-outline">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Players Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th>Player</th>
+                    <th>Batting / Bowling Style</th>
+                    <th>Keeper</th>
+                    <th>Teams</th>
+                    <th>Matches</th>
+                    <th>Runs</th>
+                    <th>Wickets</th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if players %}
+                    {% for p in players %}
+                        <tr>
+                            <td style="color: #64748b; font-weight: 600;">#{{ p.id }}</td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <img src="{{ p.avatar_url }}" alt="{{ p.name }}" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.05);">
+                                    <span style="font-weight: 600; color: #f8fafc;">{{ p.name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="font-size: 0.8rem;">
+                                    <div><i class="fa-solid fa-bat" style="color: #10b981; width: 14px;"></i> {{ p.batting_style or 'N/A' }}</div>
+                                    <div style="color: #94a3b8;"><i class="fa-solid fa-bowling-ball" style="color: #818cf8; width: 14px;"></i> {{ p.bowling_style or 'N/A' }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if p.is_keeper %}
+                                    <span style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px;">WK</span>
+                                {% else %}
+                                    <span style="color: #475569;">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if p.teams %}
+                                    <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                                        {% for t in p.teams %}
+                                            <span style="background: rgba(255,255,255,0.06); padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.75rem; color: #cbd5e1;">{{ t.name }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span style="color: #64748b; font-size: 0.8rem;">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ p.matches_played }}</strong></td>
+                            <td style="color: #34d399; font-weight: 600;">{{ p.total_runs }}</td>
+                            <td style="color: #818cf8; font-weight: 600;">{{ p.total_wickets }}</td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.35rem;">
+                                    <a href="{{ url_for('admin.player_edit', player_id=p.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Edit player">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                    <form action="{{ url_for('admin.player_delete', player_id=p.id) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="btn-admin btn-admin-danger btn-admin-sm" data-confirm="Are you sure you want to delete player '{{ p.name }}'? This cannot be undone." title="Delete player">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No players found matching current search criteria.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid var(--admin-border); font-size: 0.85rem; color: #94a3b8;">
+            <div>Showing page {{ page }} of {{ total_pages }} ({{ total_count }} players)</div>
+            <div style="display: flex; gap: 0.35rem;">
+                {% if page > 1 %}
+                    <a href="{{ url_for('admin.players_list', page=page-1, q=query, role=role_filter, team_id=team_filter) }}" class="btn-admin btn-admin-outline btn-admin-sm">Previous</a>
+                {% endif %}
+                {% if page < total_pages %}
+                    <a href="{{ url_for('admin.players_list', page=page+1, q=query, role=role_filter, team_id=team_filter) }}" class="btn-admin btn-admin-outline btn-admin-sm">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

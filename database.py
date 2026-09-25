@@ -252,6 +252,14 @@ def load_match_state(match_id, is_rebuilding=False):
                         inn_state.non_striker_id = sub['incoming_id']
                     if inn_state.bowler_id == sub['outgoing_id']:
                         inn_state.bowler_id = sub['incoming_id']
+
+    # Preserve explicit completed/abandoned match status and result if set
+    if match_row['status'] in ('completed', 'abandoned'):
+        match_state.status = match_row['status']
+        if match_row['winner_id']:
+            match_state.winner_id = match_row['winner_id']
+        if match_row['result_margin']:
+            match_state.result_margin = match_row['result_margin']
             
     conn.close()
     return match_state

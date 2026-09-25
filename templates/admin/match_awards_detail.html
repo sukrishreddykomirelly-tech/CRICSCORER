@@ -1,0 +1,203 @@
+<!-- templates/admin/match_awards_detail.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Match #{{ match.id }} Awards - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-medal" style="color: var(--admin-gold); margin-right: 0.5rem;"></i> Match #{{ match.id }} Awards Engine
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">{{ match.team1_name }} vs {{ match.team2_name }} &bull; Winner: {{ match.result_margin or 'Completed' }}</p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('admin.awards_list') }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> Awards Hub
+        </a>
+        <a href="{{ url_for('admin.match_detail', match_id=match.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-sliders"></i> Match Hub
+        </a>
+    </div>
+</div>
+
+<!-- Automatic Awards Breakdown Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="admin-card" style="margin-bottom: 0; border-left: 4px solid var(--admin-gold);">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 0.35rem;">
+            Player of the Match (POTM)
+        </div>
+        <div style="font-size: 1.15rem; font-weight: 800; color: #f8fafc;">
+            {{ calculated.potm.name if calculated.potm else 'N/A' }}
+        </div>
+        <div style="font-size: 0.8rem; color: #fbbf24; margin-top: 0.25rem;">
+            Rating: {{ calculated.potm.rating if calculated.potm else 0 }}
+        </div>
+    </div>
+
+    <div class="admin-card" style="margin-bottom: 0; border-left: 4px solid var(--admin-primary);">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 0.35rem;">
+            Best Batter
+        </div>
+        <div style="font-size: 1.15rem; font-weight: 800; color: #f8fafc;">
+            {{ calculated.best_batter.name if calculated.best_batter else 'N/A' }}
+        </div>
+        <div style="font-size: 0.8rem; color: #34d399; margin-top: 0.25rem;">
+            {{ calculated.best_batter.runs if calculated.best_batter else 0 }} Runs
+        </div>
+    </div>
+
+    <div class="admin-card" style="margin-bottom: 0; border-left: 4px solid var(--admin-indigo);">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 0.35rem;">
+            Best Bowler
+        </div>
+        <div style="font-size: 1.15rem; font-weight: 800; color: #f8fafc;">
+            {{ calculated.best_bowler.name if calculated.best_bowler else 'N/A' }}
+        </div>
+        <div style="font-size: 0.8rem; color: #818cf8; margin-top: 0.25rem;">
+            {{ calculated.best_bowler.wickets if calculated.best_bowler else 0 }} Wickets
+        </div>
+    </div>
+
+    <div class="admin-card" style="margin-bottom: 0; border-left: 4px solid #38bdf8;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 0.35rem;">
+            Most Valuable Player (MVP)
+        </div>
+        <div style="font-size: 1.15rem; font-weight: 800; color: #f8fafc;">
+            {{ calculated.mvp.name if calculated.mvp else 'N/A' }}
+        </div>
+        <div style="font-size: 0.8rem; color: #38bdf8; margin-top: 0.25rem;">
+            {{ calculated.mvp.points if calculated.mvp else 0 }} MVP Points
+        </div>
+    </div>
+</div>
+
+<!-- Manual Admin Override Panel -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-pen-nib" style="color: var(--admin-gold);"></i> Admin Awards Override
+        </h2>
+        {% if override %}
+            <span style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 4px;">
+                ACTIVE OVERRIDE
+            </span>
+        {% endif %}
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="action" value="save_override">
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Player of the Match</label>
+                <select name="potm_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                    <option value="None">-- Automatic Calculated --</option>
+                    {% for p in match_players %}
+                        <option value="{{ p.player_id }}" {% if override and override.potm_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Best Batter</label>
+                <select name="best_batter_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                    <option value="None">-- Automatic Calculated --</option>
+                    {% for p in match_players %}
+                        <option value="{{ p.player_id }}" {% if override and override.best_batter_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Best Bowler</label>
+                <select name="best_bowler_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                    <option value="None">-- Automatic Calculated --</option>
+                    {% for p in match_players %}
+                        <option value="{{ p.player_id }}" {% if override and override.best_bowler_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Best Fielder</label>
+                <select name="best_fielder_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                    <option value="None">-- Automatic Calculated --</option>
+                    {% for p in match_players %}
+                        <option value="{{ p.player_id }}" {% if override and override.best_fielder_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Override Reason / Notes</label>
+            <input type="text" name="notes" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ override.notes if override else '' }}" placeholder="e.g. Captain match-winning tactical innings">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            {% if override %}
+                <button type="submit" name="action" value="clear_override" class="btn-admin btn-admin-danger">
+                    <i class="fa-solid fa-trash-can"></i> Clear Override
+                </button>
+            {% endif %}
+            <button type="submit" class="btn-admin btn-admin-gold">
+                <i class="fa-solid fa-floppy-disk"></i> Save Awards Override
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Performance Table Breakdown -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="admin-card-header" style="padding: 1rem 1.25rem 0.5rem; margin-bottom: 0;">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-chart-simple" style="color: var(--admin-primary);"></i> Player Impact Matrix
+        </h2>
+    </div>
+
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th style="text-align: right;">Bat Runs</th>
+                    <th style="text-align: right;">Bat Impact</th>
+                    <th style="text-align: right;">Bowl Wkts</th>
+                    <th style="text-align: right;">Bowl Impact</th>
+                    <th style="text-align: right;">Field Impact</th>
+                    <th style="text-align: right;">Sit Impact</th>
+                    <th style="text-align: right;">Total Impact</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if calculated.performance_table %}
+                    {% for row in calculated.performance_table %}
+                        <tr>
+                            <td>
+                                <strong style="color: #f8fafc;">{{ row.name }}</strong>
+                            </td>
+                            <td style="text-align: right; color: #cbd5e1;">{{ row.batting_runs }} ({{ row.batting_balls }})</td>
+                            <td style="text-align: right; color: #34d399;">{{ '%0.1f'|format(row.batting_impact) }}</td>
+                            <td style="text-align: right; color: #cbd5e1;">{{ row.bowling_wickets }}/{{ row.bowling_runs }}</td>
+                            <td style="text-align: right; color: #818cf8;">{{ '%0.1f'|format(row.bowling_impact) }}</td>
+                            <td style="text-align: right; color: #38bdf8;">{{ '%0.1f'|format(row.fielding_impact) }}</td>
+                            <td style="text-align: right; color: #fbbf24;">{{ '%0.1f'|format(row.situation_impact) }}</td>
+                            <td style="text-align: right; font-weight: 800; color: #f8fafc; font-size: 0.95rem;">
+                                {{ '%0.1f'|format(row.total_impact) }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No performance records calculated for this match.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,160 @@
+<!-- templates/admin/delivery_form.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Edit Delivery #{{ delivery.id }} - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="max-width: 760px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <div>
+            <h1 style="font-size: 1.35rem; font-weight: 800; color: #f8fafc;">
+                <i class="fa-solid fa-pen-to-square" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Edit Ball: Over {{ delivery.over_number }}.{{ delivery.ball_of_over }}
+            </h1>
+            <p style="color: #94a3b8; font-size: 0.85rem;">Match #{{ match_id }} &bull; Innings {{ delivery.innings_number }} &bull; Delivery ID #{{ delivery.id }}</p>
+        </div>
+        <a href="{{ url_for('admin.match_deliveries', match_id=match_id, innings=delivery.innings_number) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Balls
+        </a>
+    </div>
+
+    <div class="admin-card">
+        <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.82rem; color: #cbd5e1;">
+            <i class="fa-solid fa-circle-info" style="color: #818cf8; margin-right: 0.35rem;"></i>
+            Saving modifications will immediately re-run the match state machine over the entire delivery log to guarantee 100% accurate scorecards and leaderboards.
+        </div>
+
+        <form method="POST">
+            <!-- Bowler & Crease Batters -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Striker (Facing)</label>
+                    <select name="striker_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" required>
+                        {% for p in match_players %}
+                            <option value="{{ p.player_id }}" {% if delivery.striker_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Non-Striker</label>
+                    <select name="non_striker_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" required>
+                        {% for p in match_players %}
+                            <option value="{{ p.player_id }}" {% if delivery.non_striker_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Bowler</label>
+                    <select name="bowler_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" required>
+                        {% for p in match_players %}
+                            <option value="{{ p.player_id }}" {% if delivery.bowler_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Runs & Extras -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Batter Runs</label>
+                    <input type="number" name="runs_batter" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ delivery.runs_batter }}" min="0" max="7" required>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Extras Runs</label>
+                    <input type="number" name="runs_extras" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ delivery.runs_extras }}" min="0" max="7" required>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Extra Type</label>
+                    <select name="extra_type" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                        <option value="None" {% if not delivery.extra_type %}selected{% endif %}>None (Legal Delivery)</option>
+                        <option value="wide" {% if delivery.extra_type == 'wide' %}selected{% endif %}>Wide (WD)</option>
+                        <option value="noball" {% if delivery.extra_type == 'noball' %}selected{% endif %}>No Ball (NB)</option>
+                        <option value="bye" {% if delivery.extra_type == 'bye' %}selected{% endif %}>Bye (B)</option>
+                        <option value="legbye" {% if delivery.extra_type == 'legbye' %}selected{% endif %}>Leg Bye (LB)</option>
+                        <option value="penalty" {% if delivery.extra_type == 'penalty' %}selected{% endif %}>Penalty</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Legal Delivery Toggle -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; font-size: 0.85rem;">
+                    <input type="checkbox" name="is_legal" value="1" {% if delivery.is_legal %}checked{% endif %} style="accent-color: var(--admin-primary); width: 16px; height: 16px;">
+                    <span>Legal delivery (Counts toward the 6 balls of the over)</span>
+                </label>
+            </div>
+
+            <!-- Wicket Section -->
+            <div style="border-top: 1px solid var(--admin-border); padding-top: 1.25rem; margin-bottom: 1.25rem;">
+                <div style="margin-bottom: 0.75rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #f87171; font-weight: 700; font-size: 0.9rem;">
+                        <input type="checkbox" name="is_wicket" value="1" {% if delivery.is_wicket %}checked{% endif %} style="accent-color: var(--admin-danger); width: 18px; height: 18px;" id="isWicketToggle" onchange="toggleWicketFields()">
+                        <span>Wicket Occurred on this Delivery</span>
+                    </label>
+                </div>
+
+                <div id="wicketDetailsBox" style="display: {% if delivery.is_wicket %}grid{% else %}none{% endif %}; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Wicket Type</label>
+                        <select name="wicket_type" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                            <option value="bowled" {% if delivery.wicket_type == 'bowled' %}selected{% endif %}>Bowled</option>
+                            <option value="caught" {% if delivery.wicket_type == 'caught' %}selected{% endif %}>Caught</option>
+                            <option value="lbw" {% if delivery.wicket_type == 'lbw' %}selected{% endif %}>LBW</option>
+                            <option value="run_out" {% if delivery.wicket_type == 'run_out' %}selected{% endif %}>Run Out</option>
+                            <option value="stumped" {% if delivery.wicket_type == 'stumped' %}selected{% endif %}>Stumped</option>
+                            <option value="hit_wicket" {% if delivery.wicket_type == 'hit_wicket' %}selected{% endif %}>Hit Wicket</option>
+                            <option value="retired" {% if delivery.wicket_type == 'retired' %}selected{% endif %}>Retired Out</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Player Dismissed</label>
+                        <select name="player_dismissed_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                            <option value="None">-- Select Dismissed Batter --</option>
+                            {% for p in match_players %}
+                                <option value="{{ p.player_id }}" {% if delivery.player_dismissed_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Fielder (Catch/RO/Stump)</label>
+                        <select name="fielder_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                            <option value="None">-- None / Unassisted --</option>
+                            {% for p in match_players %}
+                                <option value="{{ p.player_id }}" {% if delivery.fielder_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commentary -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Ball Commentary Note</label>
+                <input type="text" name="commentary" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ delivery.commentary or '' }}" placeholder="e.g. Gorgeous cover drive through extra cover for four!">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--admin-border); padding-top: 1.25rem;">
+                <a href="{{ url_for('admin.match_deliveries', match_id=match_id, innings=delivery.innings_number) }}" class="btn-admin btn-admin-outline">Cancel</a>
+                <button type="submit" class="btn-admin btn-admin-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Update Delivery &amp; Recalculate
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleWicketFields() {
+        const isWicket = document.getElementById('isWicketToggle').checked;
+        const box = document.getElementById('wicketDetailsBox');
+        box.style.display = isWicket ? 'grid' : 'none';
+    }
+</script>
+{% endblock %}

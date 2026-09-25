@@ -1,0 +1,93 @@
+<!-- templates/admin/player_form.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}{{ action_title }} - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="max-width: 680px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h1 style="font-size: 1.35rem; font-weight: 800; color: #f8fafc;">
+            <i class="fa-solid fa-user-pen" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> {{ action_title }}
+        </h1>
+        <a href="{{ url_for('admin.players_list') }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Players
+        </a>
+    </div>
+
+    <div class="admin-card">
+        <form method="POST">
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Player Full Name <span style="color: var(--admin-danger);">*</span>
+                </label>
+                <input type="text" name="name" class="admin-search-input" style="width: 100%; padding-left: 1rem;" value="{{ player.name if player else '' }}" placeholder="e.g. Virat Kohli" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                        Batting Style
+                    </label>
+                    <select name="batting_style" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                        <option value="Right-hand bat" {% if player and player.batting_style == 'Right-hand bat' %}selected{% endif %}>Right-hand bat</option>
+                        <option value="Left-hand bat" {% if player and player.batting_style == 'Left-hand bat' %}selected{% endif %}>Left-hand bat</option>
+                        <option value="None" {% if player and player.batting_style == 'None' %}selected{% endif %}>None</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                        Bowling Style
+                    </label>
+                    <select name="bowling_style" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                        <option value="Right-arm fast" {% if player and player.bowling_style == 'Right-arm fast' %}selected{% endif %}>Right-arm fast</option>
+                        <option value="Right-arm medium" {% if player and player.bowling_style == 'Right-arm medium' %}selected{% endif %}>Right-arm medium</option>
+                        <option value="Right-arm fast-medium" {% if player and player.bowling_style == 'Right-arm fast-medium' %}selected{% endif %}>Right-arm fast-medium</option>
+                        <option value="Right-arm offbreak" {% if player and player.bowling_style == 'Right-arm offbreak' %}selected{% endif %}>Right-arm offbreak</option>
+                        <option value="Right-arm legbreak" {% if player and player.bowling_style == 'Right-arm legbreak' %}selected{% endif %}>Right-arm legbreak</option>
+                        <option value="Left-arm fast" {% if player and player.bowling_style == 'Left-arm fast' %}selected{% endif %}>Left-arm fast</option>
+                        <option value="Left-arm fast-medium" {% if player and player.bowling_style == 'Left-arm fast-medium' %}selected{% endif %}>Left-arm fast-medium</option>
+                        <option value="Slow left-arm orthodox" {% if player and player.bowling_style == 'Slow left-arm orthodox' %}selected{% endif %}>Slow left-arm orthodox</option>
+                        <option value="Left-arm chinaman" {% if player and player.bowling_style == 'Left-arm chinaman' %}selected{% endif %}>Left-arm chinaman</option>
+                        <option value="None" {% if not player or player.bowling_style == 'None' or not player.bowling_style %}selected{% endif %}>None (Specialist Batter)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; font-size: 0.9rem;">
+                    <input type="checkbox" name="is_keeper" value="1" {% if player and player.is_keeper %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--admin-primary);">
+                    <span>Designate as Designated Wicket Keeper (WK)</span>
+                </label>
+            </div>
+
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Primary Team Assignment
+                </label>
+                <select name="team_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                    <option value="">-- No Team (Free Agent) --</option>
+                    {% for t in teams %}
+                        <option value="{{ t.id }}" {% if player and player.team_id|string == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Avatar URL (Optional)
+                </label>
+                <input type="url" name="avatar_url" class="admin-search-input" style="width: 100%; padding-left: 1rem;" value="{{ player.avatar_url if player else '' }}" placeholder="https://api.dicebear.com/7.x/bottts/svg?seed=PlayerName">
+                <small style="color: #64748b; font-size: 0.75rem; margin-top: 0.25rem; display: block;">Leave blank to auto-generate from player name.</small>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--admin-border); padding-top: 1.25rem;">
+                <a href="{{ url_for('admin.players_list') }}" class="btn-admin btn-admin-outline">Cancel</a>
+                <button type="submit" class="btn-admin btn-admin-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Player
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

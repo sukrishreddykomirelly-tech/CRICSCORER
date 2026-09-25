@@ -1,0 +1,169 @@
+<!-- templates/admin/rankings.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Career Rankings Inspector - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-ranking-star" style="color: var(--admin-gold); margin-right: 0.5rem;"></i> Career Player Rankings
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">
+            Dynamic player ratings across completed matches (Total Completed: {{ rankings.total_completed_matches }}).
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem;">
+        <form action="{{ url_for('admin.rankings_recalculate') }}" method="POST" style="display: inline;">
+            <button type="submit" class="btn-admin btn-admin-gold">
+                <i class="fa-solid fa-arrows-rotate"></i> Recalculate All Rankings
+            </button>
+        </form>
+        <a href="{{ url_for('rankings_page') }}" target="_blank" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Public Rankings
+        </a>
+    </div>
+</div>
+
+<!-- Tabs for Categories -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+    <!-- Best Batsmen -->
+    <div class="admin-card" style="padding: 0; overflow: hidden; margin-bottom: 0;">
+        <div class="admin-card-header" style="padding: 1rem 1.25rem; margin-bottom: 0; background: rgba(16, 185, 129, 0.08);">
+            <h2 class="admin-card-title" style="font-size: 1.05rem;">
+                <i class="fa-solid fa-bat" style="color: #10b981;"></i> Best Batsmen
+            </h2>
+        </div>
+        <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">Rank</th>
+                        <th>Player</th>
+                        <th style="text-align: right;">Matches</th>
+                        <th style="text-align: right;">Runs</th>
+                        <th style="text-align: right;">Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if rankings.batsmen %}
+                        {% for b in rankings.batsmen[:10] %}
+                            <tr>
+                                <td style="font-weight: 700; color: {% if loop.index == 1 %}var(--admin-gold){% elif loop.index <= 3 %}#34d399{% else %}#64748b{% endif %};">
+                                    #{{ loop.index }}
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <img src="{{ b.avatar_url }}" alt="{{ b.name }}" style="width: 24px; height: 24px; border-radius: 50%;">
+                                        <strong style="color: #f8fafc; font-size: 0.85rem;">{{ b.name }}</strong>
+                                    </div>
+                                </td>
+                                <td style="text-align: right; color: #cbd5e1;">{{ b.matches_played }}</td>
+                                <td style="text-align: right; color: #34d399; font-weight: 600;">{{ b.total_runs }}</td>
+                                <td style="text-align: right; font-weight: 800; color: #fbbf24;">{{ b.rating }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #64748b; padding: 1.5rem;">No eligible batsmen yet.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Best Bowlers -->
+    <div class="admin-card" style="padding: 0; overflow: hidden; margin-bottom: 0;">
+        <div class="admin-card-header" style="padding: 1rem 1.25rem; margin-bottom: 0; background: rgba(99, 102, 241, 0.08);">
+            <h2 class="admin-card-title" style="font-size: 1.05rem;">
+                <i class="fa-solid fa-bowling-ball" style="color: #818cf8;"></i> Best Bowlers
+            </h2>
+        </div>
+        <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">Rank</th>
+                        <th>Player</th>
+                        <th style="text-align: right;">Matches</th>
+                        <th style="text-align: right;">Wkts</th>
+                        <th style="text-align: right;">Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if rankings.bowlers %}
+                        {% for b in rankings.bowlers[:10] %}
+                            <tr>
+                                <td style="font-weight: 700; color: {% if loop.index == 1 %}var(--admin-gold){% elif loop.index <= 3 %}#818cf8{% else %}#64748b{% endif %};">
+                                    #{{ loop.index }}
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <img src="{{ b.avatar_url }}" alt="{{ b.name }}" style="width: 24px; height: 24px; border-radius: 50%;">
+                                        <strong style="color: #f8fafc; font-size: 0.85rem;">{{ b.name }}</strong>
+                                    </div>
+                                </td>
+                                <td style="text-align: right; color: #cbd5e1;">{{ b.matches_played }}</td>
+                                <td style="text-align: right; color: #818cf8; font-weight: 600;">{{ b.total_wickets }}</td>
+                                <td style="text-align: right; font-weight: 800; color: #fbbf24;">{{ b.rating }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #64748b; padding: 1.5rem;">No eligible bowlers yet.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Best Fielders -->
+    <div class="admin-card" style="padding: 0; overflow: hidden; margin-bottom: 0;">
+        <div class="admin-card-header" style="padding: 1rem 1.25rem; margin-bottom: 0; background: rgba(56, 189, 248, 0.08);">
+            <h2 class="admin-card-title" style="font-size: 1.05rem;">
+                <i class="fa-solid fa-hand-sparkles" style="color: #38bdf8;"></i> Best Fielders
+            </h2>
+        </div>
+        <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">Rank</th>
+                        <th>Player</th>
+                        <th style="text-align: right;">Matches</th>
+                        <th style="text-align: right;">Dismissals</th>
+                        <th style="text-align: right;">Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if rankings.fielders %}
+                        {% for f in rankings.fielders[:10] %}
+                            <tr>
+                                <td style="font-weight: 700; color: {% if loop.index == 1 %}var(--admin-gold){% elif loop.index <= 3 %}#38bdf8{% else %}#64748b{% endif %};">
+                                    #{{ loop.index }}
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <img src="{{ f.avatar_url }}" alt="{{ f.name }}" style="width: 24px; height: 24px; border-radius: 50%;">
+                                        <strong style="color: #f8fafc; font-size: 0.85rem;">{{ f.name }}</strong>
+                                    </div>
+                                </td>
+                                <td style="text-align: right; color: #cbd5e1;">{{ f.matches_played }}</td>
+                                <td style="text-align: right; color: #38bdf8; font-weight: 600;">{{ f.total_dismissals }}</td>
+                                <td style="text-align: right; font-weight: 800; color: #fbbf24;">{{ f.rating }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #64748b; padding: 1.5rem;">No eligible fielders yet.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -105,6 +105,8 @@ function showScoringOverlay(title = "Scoring ball...", subtitle = "Please wait..
     const btnSwap = document.getElementById("btn-swap-batsmen");
     if (btnSwap) btnSwap.disabled = true;
     if (btnManageSquad) btnManageSquad.disabled = true;
+    const btnEnd = document.getElementById("btn-end-match");
+    if (btnEnd) btnEnd.disabled = true;
     
     return true;
 }
@@ -121,6 +123,8 @@ function hideScoringOverlay() {
     const btnSwap = document.getElementById("btn-swap-batsmen");
     if (btnSwap) btnSwap.disabled = false;
     if (btnManageSquad) btnManageSquad.disabled = false;
+    const btnEnd = document.getElementById("btn-end-match");
+    if (btnEnd) btnEnd.disabled = false;
 }
 
 function showScoringError(message = "Unable to save ball. Please check your connection and try again.") {
@@ -1357,4 +1361,80 @@ function renderAwardsHTML(awards) {
     }
     
     return html;
+}
+
+// --- END MATCH CONTROLS ---
+const btnEndMatch = document.getElementById("btn-end-match");
+const endMatchModal = document.getElementById("end-match-modal");
+const endMatchStatusSelect = document.getElementById("end-match-status-select");
+const endMatchCustomFields = document.getElementById("end-match-custom-fields");
+const endMatchWinnerSelect = document.getElementById("end-match-winner-select");
+const endMatchMarginInput = document.getElementById("end-match-margin-input");
+
+if (btnEndMatch) {
+    btnEndMatch.addEventListener("click", openEndMatchModal);
+}
+
+function openEndMatchModal() {
+    if (!matchState) return;
+    
+    // Populate winner dropdown
+    if (endMatchWinnerSelect) {
+        endMatchWinnerSelect.innerHTML = `
+            <option value="${matchState.team1_id}">${matchState.team1_name}</option>
+            <option value="${matchState.team2_id}">${matchState.team2_name}</option>
+            <option value="none">No Winner (Tie / No Result)</option>
+        `;
+    }
+
+    if (endMatchStatusSelect) endMatchStatusSelect.value = "completed";
+    if (endMatchCustomFields) endMatchCustomFields.style.display = "none";
+    if (endMatchMarginInput) endMatchMarginInput.value = "";
+    if (endMatchModal) endMatchModal.classList.add("show");
+}
+
+function closeEndMatchModal() {
+    if (endMatchModal) endMatchModal.classList.remove("show");
+}
+
+function toggleEndMatchCustomFields() {
+    if (!endMatchStatusSelect) return;
+    const val = endMatchStatusSelect.value;
+    if (endMatchCustomFields) {
+        endMatchCustomFields.style.display = (val === 'custom') ? 'block' : 'none';
+    }
+}
+
+function submitEndMatch() {
+    if (!matchState) return;
+    const outcomeType = endMatchStatusSelect ? endMatchStatusSelect.value : 'completed';
+    const winnerId = endMatchWinnerSelect ? endMatchWinnerSelect.value : null;
+    const margin = endMatchMarginInput ? endMatchMarginInput.value : '';
+
+    showScoringOverlay("Concluding match...", "Finalizing scorecard & awards...");
+    closeEndMatchModal();
+
+    fetch(`/api/match/${matchId}/end_match`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            outcome_type: outcomeType,
+            winner_id: winnerId,
+            result_margin: margin
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        hideScoringOverlay();
+        if (data.success) {
+            fetchMatchState();
+        } else {
+            alert(data.error || "Failed to end match.");
+        }
+    })
+    .catch(err => {
+        hideScoringOverlay();
+        console.error("Error ending match:", err);
+        alert("An error occurred while trying to end the match.");
+    });
 }

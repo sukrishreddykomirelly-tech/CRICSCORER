@@ -1,16 +1,20 @@
 # app.py
+import os
 import json
 import queue
 import mimetypes
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, g
 import database
 from database import get_db_connection, save_delivery, delete_last_delivery, rebuild_and_cache_match_state
+from admin import admin_bp
 
 # Fix Windows registry MIME type association bug
 mimetypes.add_type('text/css', '.css')
 mimetypes.add_type('application/javascript', '.js')
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'cricscorer-super-secret-key-2026')
+app.register_blueprint(admin_bp)
 
 @app.route('/health')
 def health_check():
@@ -947,6 +951,89 @@ def api_player_profile(player_id):
     if not profile:
         return jsonify({"success": False, "error": "Player not found"}), 404
     return jsonify(profile)
+
+
+@app.route('/api/match/<int:match_id>/end_match', methods=['POST'])
+def api_end_match(match_id):
+    req = request.get_json() or {}
+    outcome_type = req.get('outcome_type', 'completed')
+    custom_winner_id = req.get('winner_id')
+    custom_margin = req.get('result_margin', '').strip()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM matches WHERE id = ?", (match_id,))
+    match_row = cursor.fetchone()
+    if not match_row:
+        conn.close()
+        return jsonify({"error": "Match not found"}), 404
+
+    # Load match state
+    match_state = database.load_match_state(match_id)
+    winner_id = match_state.winner_id if match_state else None
+    result_margin = match_state.result_margin if match_state else "Match completed"
+    status = "completed"
+
+    if outcome_type == 'abandoned':
+        status = 'abandoned'
+        winner_id = None
+        result_margin = custom_margin or "Match abandoned (No result)"
+    elif outcome_type == 'tied':
+        status = 'completed'
+        winner_id = None
+        result_margin = custom_margin or "Match tied"
+    elif outcome_type == 'custom':
+        status = 'completed'
+        winner_id = int(custom_winner_id) if custom_winner_id and str(custom_winner_id).lower() != 'none' else winner_id
+        result_margin = custom_margin or result_margin
+    else:
+        # Default auto completion
+        status = 'completed'
+        cursor.execute("SELECT batting_team_id, bowling_team_id, total_runs FROM innings WHERE match_id = ? ORDER BY innings_number ASC", (match_id,))
+        inns = cursor.fetchall()
+        if len(inns) >= 2:
+            t1_runs = inns[0]['total_runs']
+            t2_runs = inns[1]['total_runs']
+            if t1_runs > t2_runs:
+                winner_id = inns[0]['batting_team_id']
+                result_margin = f"Won by {t1_runs - t2_runs} runs"
+            elif t2_runs > t1_runs:
+                winner_id = inns[1]['batting_team_id']
+                result_margin = "Won by wickets"
+            else:
+                winner_id = None
+                result_margin = "Match tied"
+        elif len(inns) == 1:
+            winner_id = inns[0]['batting_team_id']
+            result_margin = f"Completed (1st Inn: {inns[0]['total_runs']})"
+
+    # Update match and innings status
+    cursor.execute("""
+        UPDATE matches
+        SET status = ?, winner_id = ?, result_margin = ?
+        WHERE id = ?
+    """, (status, winner_id, result_margin, match_id))
+
+    cursor.execute("""
+        UPDATE innings
+        SET status = 'completed'
+        WHERE match_id = ? AND status = 'ongoing'
+    """, (match_id,))
+
+    conn.commit()
+    conn.close()
+
+    # Rebuild state caches and trigger awards/tournament updates
+    database.rebuild_and_cache_match_state(match_id)
+    notify_match_update(match_id)
+
+    return jsonify({
+        "success": True,
+        "match_id": match_id,
+        "status": status,
+        "winner_id": winner_id,
+        "result_margin": result_margin
+    })
 
 
 # --- DYNAMIC INNINGS CREASE HYDRATION IN LOAD STATE ---

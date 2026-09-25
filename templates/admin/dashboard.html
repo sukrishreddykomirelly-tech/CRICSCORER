@@ -1,0 +1,220 @@
+<!-- templates/admin/dashboard.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Dashboard - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-gauge-high" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> System Overview
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Live operational metrics and cricket match management console.</p>
+    </div>
+
+    <!-- Quick Action Toolbar -->
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.matches_list') }}" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-plus"></i> Match
+        </a>
+        <a href="{{ url_for('admin.player_create') }}" class="btn-admin btn-admin-outline">
+            <i class="fa-solid fa-user-plus"></i> Player
+        </a>
+        <a href="{{ url_for('admin.team_create') }}" class="btn-admin btn-admin-outline">
+            <i class="fa-solid fa-users"></i> Team
+        </a>
+        <form action="{{ url_for('admin.rankings_recalculate') }}" method="POST" style="display: inline;">
+            <button type="submit" class="btn-admin btn-admin-gold" title="Recalculate player career rankings">
+                <i class="fa-solid fa-arrows-rotate"></i> Recalculate Rankings
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Key Metric Cards Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.75rem;">
+    <div class="admin-card" style="margin-bottom: 0; padding: 1.25rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-baseball-bat-ball"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Matches</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">{{ metrics.matches }}</div>
+            <div style="font-size: 0.75rem; color: #64748b;">{{ metrics.completed }} Done &bull; {{ metrics.live }} Live</div>
+        </div>
+    </div>
+
+    <div class="admin-card" style="margin-bottom: 0; padding: 1.25rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: #818cf8; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-user-ninja"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Players</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">{{ metrics.players }}</div>
+            <div style="font-size: 0.75rem; color: #64748b;">Active Roster</div>
+        </div>
+    </div>
+
+    <div class="admin-card" style="margin-bottom: 0; padding: 1.25rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Teams</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">{{ metrics.teams }}</div>
+            <div style="font-size: 0.75rem; color: #64748b;">{{ metrics.tournaments }} Tournaments</div>
+        </div>
+    </div>
+
+    <div class="admin-card" style="margin-bottom: 0; padding: 1.25rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(239, 68, 68, 0.15); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-bowling-ball"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Deliveries</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">{{ metrics.deliveries }}</div>
+            <div style="font-size: 0.75rem; color: #64748b;">{{ metrics.total_runs }} Runs &bull; {{ metrics.total_wickets }} Wkts</div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Activity Section -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h2 class="admin-card-title">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ef4444; margin-right: 0.4rem; animation: pulse 1.5s infinite;"></span>
+            Live Matches In Progress ({{ live_matches|length }})
+        </h2>
+        <a href="{{ url_for('admin.matches_list', status='live') }}" class="btn-admin btn-admin-outline btn-admin-sm">View All Matches</a>
+    </div>
+
+    {% if live_matches %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;">
+            {% for m in live_matches %}
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--admin-border); border-radius: 10px; padding: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">
+                            {{ m.match_format }} &bull; {{ m.ground or 'Ground N/A' }}
+                        </span>
+                        <span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                            LIVE
+                        </span>
+                    </div>
+
+                    <!-- Teams & Scores -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div style="font-weight: 700; font-size: 0.95rem; color: #f8fafc;">
+                            {{ m.team1_name }} vs {{ m.team2_name }}
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(0, 0, 0, 0.25); border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; font-size: 0.82rem; color: #cbd5e1;">
+                        {% if m.i1_runs is not none %}
+                            <div><strong>1st Inn:</strong> {{ m.i1_runs }}/{{ m.i1_wkts }} ({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</div>
+                        {% endif %}
+                        {% if m.i2_runs is not none %}
+                            <div><strong>2nd Inn:</strong> {{ m.i2_runs }}/{{ m.i2_wkts }} ({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</div>
+                        {% endif %}
+                        {% if m.striker_name %}
+                            <div style="margin-top: 0.25rem; color: #10b981;">
+                                <i class="fa-solid fa-bat"></i> Striker: <strong>{{ m.striker_name }}</strong>
+                                {% if m.bowler_name %} &bull; Bowler: <strong>{{ m.bowler_name }}</strong>{% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Direct Action Buttons -->
+                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                        <a href="{{ url_for('match_scoring_console', match_id=m.id) }}" class="btn-admin btn-admin-primary btn-admin-sm" target="_blank">
+                            <i class="fa-solid fa-pen-to-square"></i> Score
+                        </a>
+                        <a href="{{ url_for('admin.match_deliveries', match_id=m.id) }}" class="btn-admin btn-admin-indigo btn-admin-sm">
+                            <i class="fa-solid fa-list-ol"></i> Balls
+                        </a>
+                        <a href="{{ url_for('admin.match_detail', match_id=m.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                            <i class="fa-solid fa-gear"></i> Manage
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 2rem; color: #64748b;">
+            <i class="fa-solid fa-circle-pause" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+            <p style="font-size: 0.9rem;">No matches are actively live right now.</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Two Columns: Recent Completions & Audit Logs -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+    <!-- Recent Matches -->
+    <div class="admin-card" style="margin-bottom: 0;">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-clock-rotate-left" style="color: var(--admin-indigo);"></i> Recent Matches
+            </h2>
+            <a href="{{ url_for('admin.matches_list') }}" class="btn-admin btn-admin-outline btn-admin-sm">All Matches</a>
+        </div>
+
+        {% if recent_matches %}
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for rm in recent_matches %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.8rem; background: rgba(255, 255, 255, 0.02); border-radius: 8px; border: 1px solid var(--admin-border);">
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.88rem; color: #f8fafc;">
+                                {{ rm.team1_name }} vs {{ rm.team2_name }}
+                            </div>
+                            <div style="font-size: 0.78rem; color: #94a3b8;">
+                                {% if rm.winner_name %}
+                                    <span style="color: #fbbf24;">Winner: {{ rm.winner_name }}</span> ({{ rm.result_margin or 'Completed' }})
+                                {% else %}
+                                    <span style="text-transform: capitalize;">{{ rm.status }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.35rem;">
+                            <a href="{{ url_for('admin.match_detail', match_id=rm.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Edit match">
+                                <i class="fa-solid fa-sliders"></i>
+                            </a>
+                            <a href="{{ url_for('admin.match_scorecard', match_id=rm.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Scorecard">
+                                <i class="fa-solid fa-receipt"></i>
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #64748b; font-size: 0.88rem; text-align: center; padding: 1rem;">No recent matches recorded.</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Audit Logs -->
+    <div class="admin-card" style="margin-bottom: 0;">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-list-check" style="color: var(--admin-gold);"></i> Recent Admin Actions
+            </h2>
+            <a href="{{ url_for('admin.audit_log') }}" class="btn-admin btn-admin-outline btn-admin-sm">Audit Log</a>
+        </div>
+
+        {% if recent_logs %}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for log in recent_logs %}
+                    <div style="padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border-left: 3px solid var(--admin-primary); font-size: 0.82rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.2rem;">
+                            <strong style="color: #f8fafc;">{{ log.action }}</strong>
+                            <span style="color: #64748b; font-size: 0.75rem;">{{ log.admin_username }}</span>
+                        </div>
+                        <div style="color: #94a3b8; font-size: 0.78rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                            {{ log.details or 'No details provided' }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #64748b; font-size: 0.88rem; text-align: center; padding: 1rem;">No audit logs recorded yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

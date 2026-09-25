@@ -1,0 +1,162 @@
+<!-- templates/admin/deliveries.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Deliveries Inspector - Match #{{ match.id }} - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
+            <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">
+                Ball-by-Ball Inspector: Match #{{ match.id }}
+            </h1>
+        </div>
+        <p style="color: #94a3b8; font-size: 0.88rem;">
+            {{ match.team1_name }} vs {{ match.team2_name }} &bull; {{ match.ground or 'Ground N/A' }}
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.match_detail', match_id=match.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> Match Hub
+        </a>
+        <a href="{{ url_for('match_scoring_console', match_id=match.id) }}" target="_blank" class="btn-admin btn-admin-primary btn-admin-sm">
+            <i class="fa-solid fa-pen-to-square"></i> Scorer View
+        </a>
+    </div>
+</div>
+
+<!-- Innings Tabs & Over Filter -->
+<div class="admin-card" style="padding: 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <!-- Innings Tabs -->
+    <div style="display: flex; gap: 0.5rem;">
+        {% for inn in all_innings %}
+            <a href="{{ url_for('admin.match_deliveries', match_id=match.id, innings=inn.innings_number) }}" class="btn-admin {% if inn.innings_number == innings_num %}btn-admin-primary{% else %}btn-admin-outline{% endif %} btn-admin-sm">
+                Innings {{ inn.innings_number }} ({{ inn.total_runs }}/{{ inn.total_wickets }})
+            </a>
+        {% endfor %}
+    </div>
+
+    <!-- Over Filter -->
+    <form action="{{ url_for('admin.match_deliveries', match_id=match.id) }}" method="GET" style="display: flex; gap: 0.5rem; align-items: center;">
+        <input type="hidden" name="innings" value="{{ innings_num }}">
+        <input type="number" name="over" value="{{ over_filter }}" placeholder="Filter by Over #" class="admin-search-input" style="width: 140px; padding-left: 0.75rem;" min="1">
+        <button type="submit" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-filter"></i> Over
+        </button>
+        {% if over_filter %}
+            <a href="{{ url_for('admin.match_deliveries', match_id=match.id, innings=innings_num) }}" class="btn-admin btn-admin-outline btn-admin-sm">Reset</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Deliveries Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">Ball #</th>
+                    <th>Bowler</th>
+                    <th>Striker &amp; Non-Striker</th>
+                    <th>Runs</th>
+                    <th>Extras</th>
+                    <th>Wicket Details</th>
+                    <th>Legal</th>
+                    <th>Commentary</th>
+                    <th style="text-align: right; width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if deliveries %}
+                    {% for d in deliveries %}
+                        <tr style="{% if d.is_wicket %}background: rgba(239, 68, 68, 0.05);{% endif %}">
+                            <td>
+                                <strong style="color: #f8fafc;">{{ d.over_number }}.{{ d.ball_of_over }}</strong>
+                                <div style="font-size: 0.72rem; color: #64748b;">Del #{{ d.delivery_count }}</div>
+                            </td>
+                            <td>
+                                <strong style="color: #818cf8;">{{ d.bowler_name or 'Unknown' }}</strong>
+                            </td>
+                            <td>
+                                <div><strong style="color: #34d399;">{{ d.striker_name or 'Unknown' }}</strong> <span style="font-size: 0.72rem; color: #10b981;">*</span></div>
+                                <div style="font-size: 0.78rem; color: #94a3b8;">{{ d.non_striker_name or 'Unknown' }}</div>
+                            </td>
+                            <td>
+                                <span style="font-size: 1rem; font-weight: 800; color: {% if d.runs_batter == 4 %}#38bdf8{% elif d.runs_batter == 6 %}#fbbf24{% elif d.runs_batter > 0 %}#34d399{% else %}#64748b{% endif %};">
+                                    {{ d.runs_batter }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if d.runs_extras > 0 %}
+                                    <span style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px;">
+                                        +{{ d.runs_extras }} {{ d.extra_type or 'Extras' }}
+                                    </span>
+                                {% else %}
+                                    <span style="color: #475569;">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if d.is_wicket %}
+                                    <div style="color: #f87171; font-weight: 700; font-size: 0.82rem;">
+                                        <i class="fa-solid fa-circle-xmark"></i> {{ d.wicket_type|upper or 'WICKET' }}
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: #cbd5e1;">
+                                        Out: <strong>{{ d.dismissed_name or 'Batter' }}</strong>
+                                        {% if d.fielder_name %} (c/ro: {{ d.fielder_name }}){% endif %}
+                                    </div>
+                                {% else %}
+                                    <span style="color: #475569;">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if d.is_legal %}
+                                    <span style="color: #34d399;"><i class="fa-solid fa-check"></i></span>
+                                {% else %}
+                                    <span style="color: #f87171; font-weight: 700; font-size: 0.75rem;">ILLEGAL</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span style="font-size: 0.8rem; color: #94a3b8;">{{ d.commentary or '-' }}</span>
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.35rem;">
+                                    <a href="{{ url_for('admin.delivery_edit', delivery_id=d.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Edit delivery">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                    <form action="{{ url_for('admin.delivery_delete', delivery_id=d.id) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="btn-admin btn-admin-danger btn-admin-sm" data-confirm="Are you sure you want to delete Ball {{ d.over_number }}.{{ d.ball_of_over }}? Match state will automatically recalculate." title="Delete delivery">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No deliveries recorded for this innings.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid var(--admin-border); font-size: 0.85rem; color: #94a3b8;">
+            <div>Showing page {{ page }} of {{ total_pages }} ({{ total_deliveries }} balls)</div>
+            <div style="display: flex; gap: 0.35rem;">
+                {% if page > 1 %}
+                    <a href="{{ url_for('admin.match_deliveries', match_id=match.id, innings=innings_num, over=over_filter, page=page-1) }}" class="btn-admin btn-admin-outline btn-admin-sm">Previous</a>
+                {% endif %}
+                {% if page < total_pages %}
+                    <a href="{{ url_for('admin.match_deliveries', match_id=match.id, innings=innings_num, over=over_filter, page=page+1) }}" class="btn-admin btn-admin-outline btn-admin-sm">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

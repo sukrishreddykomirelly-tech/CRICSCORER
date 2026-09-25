@@ -1,0 +1,73 @@
+<!-- templates/admin/tournament_form.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}{{ action_title }} - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="max-width: 750px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h1 style="font-size: 1.35rem; font-weight: 800; color: #f8fafc;">
+            <i class="fa-solid fa-trophy" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> {{ action_title }}
+        </h1>
+        <a href="{{ url_for('admin.tournaments_list') }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Tournaments
+        </a>
+    </div>
+
+    <div class="admin-card">
+        <form method="POST">
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Tournament Name <span style="color: var(--admin-danger);">*</span>
+                </label>
+                <input type="text" name="name" class="admin-search-input" style="width: 100%; padding-left: 1rem;" value="{{ tournament.name if tournament else '' }}" placeholder="e.g. Premier Cricket League 2026" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                        Win Points
+                    </label>
+                    <input type="number" name="win_points" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ tournament.win_points if tournament else 2 }}" min="0" max="10" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                        Tie Points
+                    </label>
+                    <input type="number" name="tie_points" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ tournament.tie_points if tournament else 1 }}" min="0" max="10" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase;">
+                        No Result (NR) Points
+                    </label>
+                    <input type="number" name="nr_points" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ tournament.nr_points if tournament else 1 }}" min="0" max="10" required>
+                </div>
+            </div>
+
+            <!-- Participating Teams Selection -->
+            <div style="border-top: 1px solid var(--admin-border); padding-top: 1.25rem; margin-bottom: 1.5rem;">
+                <div style="margin-bottom: 0.75rem;">
+                    <h3 style="font-size: 1rem; font-weight: 700; color: #f8fafc;">Participating Teams</h3>
+                    <p style="color: #64748b; font-size: 0.78rem;">Select teams that are eligible to compete in this tournament.</p>
+                </div>
+
+                <div style="max-height: 240px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--admin-border); border-radius: 8px; padding: 0.75rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem;">
+                    {% for t in all_teams %}
+                        <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--admin-border); border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #cbd5e1;">
+                            <input type="checkbox" name="team_ids" value="{{ t.id }}" {% if t.id in selected_team_ids %}checked{% endif %} style="accent-color: var(--admin-primary); width: 16px; height: 16px;">
+                            <span>{{ t.name }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--admin-border); padding-top: 1.25rem;">
+                <a href="{{ url_for('admin.tournaments_list') }}" class="btn-admin btn-admin-outline">Cancel</a>
+                <button type="submit" class="btn-admin btn-admin-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Tournament
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

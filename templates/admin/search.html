@@ -1,0 +1,119 @@
+<!-- templates/admin/search.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Search Results: "{{ query }}" - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+        <i class="fa-solid fa-magnifying-glass" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Search Results for "{{ query }}"
+    </h1>
+    <p style="color: #94a3b8; font-size: 0.88rem;">Cross-entity results across players, teams, tournaments, and matches.</p>
+</div>
+
+<!-- Search Results Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem;">
+    <!-- Players Results -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-user-ninja" style="color: var(--admin-primary);"></i> Players ({{ results.players|length if results.players else 0 }})
+            </h2>
+        </div>
+        {% if results.players %}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for p in results.players %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid var(--admin-border);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <img src="{{ p.avatar_url }}" alt="{{ p.name }}" style="width: 24px; height: 24px; border-radius: 50%;">
+                            <strong style="color: #f8fafc; font-size: 0.85rem;">{{ p.name }}</strong>
+                        </div>
+                        <a href="{{ url_for('admin.player_edit', player_id=p.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 1rem;">No matching players found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Teams Results -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-users" style="color: var(--admin-indigo);"></i> Teams ({{ results.teams|length if results.teams else 0 }})
+            </h2>
+        </div>
+        {% if results.teams %}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for t in results.teams %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid var(--admin-border);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            {% if t.logo_url %}
+                                <img src="{{ t.logo_url }}" alt="{{ t.name }}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: contain;">
+                            {% endif %}
+                            <strong style="color: #f8fafc; font-size: 0.85rem;">{{ t.name }}</strong>
+                        </div>
+                        <a href="{{ url_for('admin.team_edit', team_id=t.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 1rem;">No matching teams found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Tournaments Results -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-trophy" style="color: var(--admin-gold);"></i> Tournaments ({{ results.tournaments|length if results.tournaments else 0 }})
+            </h2>
+        </div>
+        {% if results.tournaments %}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for tour in results.tournaments %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid var(--admin-border);">
+                        <strong style="color: #f8fafc; font-size: 0.85rem;">{{ tour.name }}</strong>
+                        <a href="{{ url_for('admin.tournament_standings', tournament_id=tour.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                            <i class="fa-solid fa-table-list"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 1rem;">No matching tournaments found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Matches Results -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-baseball-bat-ball" style="color: #38bdf8;"></i> Matches ({{ results.matches|length if results.matches else 0 }})
+            </h2>
+        </div>
+        {% if results.matches %}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for m in results.matches %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid var(--admin-border);">
+                        <div>
+                            <div style="font-weight: 700; color: #f8fafc; font-size: 0.85rem;">{{ m.team1_name }} vs {{ m.team2_name }}</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">{{ m.ground }} &bull; {{ m.status }}</div>
+                        </div>
+                        <a href="{{ url_for('admin.match_detail', match_id=m.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                            <i class="fa-solid fa-sliders"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 1rem;">No matching matches found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

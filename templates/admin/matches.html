@@ -1,0 +1,170 @@
+<!-- templates/admin/matches.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Match Management - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-baseball-bat-ball" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Match Management
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Monitor, configure, edit metadata, inspect balls, and recalculate match state.</p>
+    </div>
+
+    <a href="{{ url_for('match_create') }}" target="_blank" class="btn-admin btn-admin-primary">
+        <i class="fa-solid fa-plus"></i> Create New Match
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="admin-card" style="padding: 1rem; margin-bottom: 1.25rem;">
+    <form action="{{ url_for('admin.matches_list') }}" method="GET" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search team or ground..." class="admin-search-input" style="flex: 1; min-width: 180px; padding-left: 1rem;">
+
+        <select name="status" class="admin-search-input" style="width: auto; padding-left: 0.75rem;">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+            <option value="live" {% if status_filter == 'live' %}selected{% endif %}>Live / Ongoing</option>
+            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+            <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>Scheduled</option>
+            <option value="abandoned" {% if status_filter == 'abandoned' %}selected{% endif %}>Abandoned</option>
+        </select>
+
+        <select name="tournament_id" class="admin-search-input" style="width: auto; padding-left: 0.75rem;">
+            <option value="">All Tournaments</option>
+            {% for tour in all_tournaments %}
+                <option value="{{ tour.id }}" {% if tourney_filter|string == tour.id|string %}selected{% endif %}>{{ tour.name }}</option>
+            {% endfor %}
+        </select>
+
+        <select name="team_id" class="admin-search-input" style="width: auto; padding-left: 0.75rem;">
+            <option value="">All Teams</option>
+            {% for t in all_teams %}
+                <option value="{{ t.id }}" {% if team_filter|string == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-filter"></i> Filter
+        </button>
+        {% if query or status_filter != 'all' or tourney_filter or team_filter %}
+            <a href="{{ url_for('admin.matches_list') }}" class="btn-admin btn-admin-outline">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Matches Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th>Fixture &amp; Format</th>
+                    <th>Status</th>
+                    <th>Scores (1st / 2nd)</th>
+                    <th>Result / Margin</th>
+                    <th>Date &amp; Venue</th>
+                    <th>Balls</th>
+                    <th style="text-align: right; width: 200px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if matches %}
+                    {% for m in matches %}
+                        <tr>
+                            <td style="color: #64748b; font-weight: 600;">#{{ m.id }}</td>
+                            <td>
+                                <div style="font-weight: 700; color: #f8fafc; font-size: 0.95rem;">
+                                    {{ m.team1_name }} vs {{ m.team2_name }}
+                                </div>
+                                <div style="font-size: 0.78rem; color: #94a3b8;">
+                                    {{ m.match_format }} &bull; {{ m.overs_limit }} Overs
+                                    {% if m.tournament_name %} &bull; <span style="color: var(--admin-gold);">{{ m.tournament_name }}</span>{% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if m.status == 'live' or m.status == 'toss_done' %}
+                                    <span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px;">LIVE</span>
+                                {% elif m.status == 'completed' %}
+                                    <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px;">COMPLETED</span>
+                                {% elif m.status == 'scheduled' %}
+                                    <span style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px;">SCHEDULED</span>
+                                {% else %}
+                                    <span style="background: rgba(255, 255, 255, 0.08); color: #cbd5e1; font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">{{ m.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="font-size: 0.82rem;">
+                                    {% if m.i1_runs is not none %}
+                                        <div><strong>1st:</strong> {{ m.i1_runs }}/{{ m.i1_wkts }} ({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</div>
+                                    {% endif %}
+                                    {% if m.i2_runs is not none %}
+                                        <div><strong>2nd:</strong> {{ m.i2_runs }}/{{ m.i2_wkts }} ({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if m.winner_name %}
+                                    <span style="color: #fbbf24; font-weight: 600;">{{ m.winner_name }}</span>
+                                    <div style="font-size: 0.75rem; color: #94a3b8;">{{ m.result_margin }}</div>
+                                {% else %}
+                                    <span style="color: #64748b;">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="font-size: 0.8rem; color: #cbd5e1;">{{ m.match_date or 'N/A' }}</div>
+                                <div style="font-size: 0.75rem; color: #64748b;">{{ m.ground or 'Ground N/A' }}</div>
+                            </td>
+                            <td>
+                                <span style="background: rgba(255,255,255,0.06); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.8rem;">
+                                    {{ m.delivery_count }}
+                                </span>
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.35rem;">
+                                    <a href="{{ url_for('admin.match_deliveries', match_id=m.id) }}" class="btn-admin btn-admin-indigo btn-admin-sm" title="Ball-by-ball inspector">
+                                        <i class="fa-solid fa-list-ol"></i>
+                                    </a>
+                                    <a href="{{ url_for('admin.match_scorecard', match_id=m.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Detailed scorecard">
+                                        <i class="fa-solid fa-receipt"></i>
+                                    </a>
+                                    <a href="{{ url_for('admin.match_detail', match_id=m.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Configure & edit match">
+                                        <i class="fa-solid fa-sliders"></i>
+                                    </a>
+                                    <form action="{{ url_for('admin.match_delete', match_id=m.id) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="btn-admin btn-admin-danger btn-admin-sm" data-confirm="Are you sure you want to completely delete Match #{{ m.id }} and all its deliveries?" title="Delete match">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No matches found matching filter criteria.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid var(--admin-border); font-size: 0.85rem; color: #94a3b8;">
+            <div>Showing page {{ page }} of {{ total_pages }} ({{ total_count }} matches)</div>
+            <div style="display: flex; gap: 0.35rem;">
+                {% if page > 1 %}
+                    <a href="{{ url_for('admin.matches_list', page=page-1, status=status_filter, tournament_id=tourney_filter, team_id=team_filter, q=query) }}" class="btn-admin btn-admin-outline btn-admin-sm">Previous</a>
+                {% endif %}
+                {% if page < total_pages %}
+                    <a href="{{ url_for('admin.matches_list', page=page+1, status=status_filter, tournament_id=tourney_filter, team_id=team_filter, q=query) }}" class="btn-admin btn-admin-outline btn-admin-sm">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

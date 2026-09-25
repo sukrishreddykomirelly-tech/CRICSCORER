@@ -1,0 +1,233 @@
+<!-- templates/admin/match_detail.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Match #{{ match.id }} Control - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
+            <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">
+                Match #{{ match.id }}: {{ match.team1_name }} vs {{ match.team2_name }}
+            </h1>
+            <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">
+                {{ match.status }}
+            </span>
+        </div>
+        <p style="color: #94a3b8; font-size: 0.88rem;">{{ match.ground or 'Ground N/A' }} &bull; {{ match.match_date or 'Date N/A' }} &bull; {{ match.match_format }} ({{ match.overs_limit }} Overs)</p>
+    </div>
+
+    <!-- Hub Action Buttons -->
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.match_deliveries', match_id=match.id) }}" class="btn-admin btn-admin-indigo">
+            <i class="fa-solid fa-list-ol"></i> Manage Deliveries ({{ delivery_count }})
+        </a>
+        <a href="{{ url_for('admin.match_scorecard', match_id=match.id) }}" class="btn-admin btn-admin-outline">
+            <i class="fa-solid fa-receipt"></i> Scorecard
+        </a>
+        <a href="{{ url_for('admin.match_awards_detail', match_id=match.id) }}" class="btn-admin btn-admin-gold">
+            <i class="fa-solid fa-medal"></i> Awards
+        </a>
+        <a href="{{ url_for('match_scoring_console', match_id=match.id) }}" target="_blank" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-pen-to-square"></i> Open Scorer
+        </a>
+        {% if match.status != 'completed' %}
+            <form action="{{ url_for('admin.match_end_admin', match_id=match.id) }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn-admin btn-admin-danger" data-confirm="Are you sure you want to end and conclude Match #{{ match.id }}? This will mark it completed." title="Conclude and end match">
+                    <i class="fa-solid fa-flag-checkered"></i> End Match
+                </button>
+            </form>
+        {% endif %}
+        <form action="{{ url_for('admin.match_rebuild_state', match_id=match.id) }}" method="POST" style="display: inline;">
+            <button type="submit" class="btn-admin btn-admin-outline" title="Replay all deliveries and refresh match summaries & caches">
+                <i class="fa-solid fa-arrows-rotate"></i> Rebuild State
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Two Columns: Metadata Editor & Innings Overview -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+    <!-- Metadata Editor -->
+    <div class="admin-card" style="margin-bottom: 0;">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-sliders" style="color: var(--admin-primary);"></i> Match Metadata
+            </h2>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="action_type" value="update_metadata">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Match Format</label>
+                    <select name="match_format" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                        <option value="T20" {% if match.match_format == 'T20' %}selected{% endif %}>T20</option>
+                        <option value="ODI" {% if match.match_format == 'ODI' %}selected{% endif %}>ODI (50 Overs)</option>
+                        <option value="Test" {% if match.match_format == 'Test' %}selected{% endif %}>Test</option>
+                        <option value="Custom" {% if match.match_format not in ['T20', 'ODI', 'Test'] %}selected{% endif %}>Custom</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Overs Limit</label>
+                    <input type="number" name="overs_limit" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ match.overs_limit }}" min="1" max="100" required>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Ground / Venue</label>
+                <input type="text" name="ground" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ match.ground or '' }}" placeholder="e.g. Wankhede Stadium">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Match Date</label>
+                    <input type="date" name="match_date" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ match.match_date or '' }}">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Match Time</label>
+                    <input type="time" name="match_time" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ match.match_time or '' }}">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Status</label>
+                    <select name="status" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                        <option value="scheduled" {% if match.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                        <option value="toss_done" {% if match.status == 'toss_done' %}selected{% endif %}>Toss Completed</option>
+                        <option value="live" {% if match.status == 'live' %}selected{% endif %}>Live / Ongoing</option>
+                        <option value="completed" {% if match.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="abandoned" {% if match.status == 'abandoned' %}selected{% endif %}>Abandoned</option>
+                        <option value="no_result" {% if match.status == 'no_result' %}selected{% endif %}>No Result</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Winner Team</label>
+                    <select name="winner_id" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;">
+                        <option value="None">-- None / Pending --</option>
+                        <option value="{{ match.team1_id }}" {% if match.winner_id == match.team1_id %}selected{% endif %}>{{ match.team1_name }}</option>
+                        <option value="{{ match.team2_id }}" {% if match.winner_id == match.team2_id %}selected{% endif %}>{{ match.team2_name }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; text-transform: uppercase;">Result Margin</label>
+                <input type="text" name="result_margin" class="admin-search-input" style="width: 100%; padding-left: 0.75rem;" value="{{ match.result_margin or '' }}" placeholder="e.g. Royal Challengers won by 14 runs">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; font-size: 0.85rem;">
+                    <input type="checkbox" name="single_batting" value="1" {% if match.single_batting %}checked{% endif %} style="accent-color: var(--admin-primary); width: 16px; height: 16px;">
+                    <span>Single Batting Mode (Batting without Non-Striker partner)</span>
+                </label>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn-admin btn-admin-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Update Metadata
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Innings & Current State Overview -->
+    <div class="admin-card" style="margin-bottom: 0;">
+        <div class="admin-card-header">
+            <h2 class="admin-card-title">
+                <i class="fa-solid fa-layer-group" style="color: var(--admin-indigo);"></i> Innings Cache Status
+            </h2>
+        </div>
+
+        {% if innings %}
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for inn in innings %}
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--admin-border); border-radius: 8px; padding: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 700; color: #f8fafc; font-size: 0.95rem;">
+                                Innings {{ inn.innings_number }}
+                            </span>
+                            <span style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">
+                                {{ inn.status }}
+                            </span>
+                        </div>
+
+                        <div style="font-size: 1.35rem; font-weight: 800; color: #34d399; margin-bottom: 0.5rem;">
+                            {{ inn.total_runs }} / {{ inn.total_wickets }}
+                            <span style="font-size: 0.85rem; font-weight: 500; color: #94a3b8;">
+                                ({{ (inn.balls_bowled // 6) }}.{{ (inn.balls_bowled % 6) }} Overs)
+                            </span>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem; font-size: 0.78rem; color: #94a3b8;">
+                            <div>Wides: <strong>{{ inn.wides }}</strong></div>
+                            <div>No Balls: <strong>{{ inn.noballs }}</strong></div>
+                            <div>Byes: <strong>{{ inn.byes }}</strong></div>
+                            <div>Leg Byes: <strong>{{ inn.legbyes }}</strong></div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #64748b; font-size: 0.88rem; text-align: center; padding: 2rem;">No innings created for this match yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Dynamic Match Rosters (Playing XIs) -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-users" style="color: var(--admin-gold);"></i> Playing XI &amp; Squad Rosters
+        </h2>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="action_type" value="update_squad">
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+            <!-- Team 1 Squad Selection -->
+            <div>
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span>{{ match.team1_name }} Roster</span>
+                    <span style="font-size: 0.8rem; color: #10b981;">{{ t1_squad|length }} players</span>
+                </h3>
+                <div style="max-height: 280px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--admin-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                    {% for p in all_players %}
+                        <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; background: rgba(255, 255, 255, 0.02); border-radius: 6px; cursor: pointer; font-size: 0.82rem; color: #cbd5e1;">
+                            <input type="checkbox" name="team1_players" value="{{ p.id }}" {% if p.id in t1_squad|map(attribute='player_id') %}checked{% endif %} style="accent-color: var(--admin-primary);">
+                            <span>{{ p.name }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Team 2 Squad Selection -->
+            <div>
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span>{{ match.team2_name }} Roster</span>
+                    <span style="font-size: 0.8rem; color: #10b981;">{{ t2_squad|length }} players</span>
+                </h3>
+                <div style="max-height: 280px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--admin-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                    {% for p in all_players %}
+                        <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; background: rgba(255, 255, 255, 0.02); border-radius: 6px; cursor: pointer; font-size: 0.82rem; color: #cbd5e1;">
+                            <input type="checkbox" name="team2_players" value="{{ p.id }}" {% if p.id in t2_squad|map(attribute='player_id') %}checked{% endif %} style="accent-color: var(--admin-primary);">
+                            <span>{{ p.name }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn-admin btn-admin-primary">
+                <i class="fa-solid fa-floppy-disk"></i> Update Match Squads
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+<!-- templates/admin/inactivity.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Player Inactivity Tracking - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-user-clock" style="color: var(--admin-indigo); margin-right: 0.5rem;"></i> Inactivity &amp; Participation Monitor
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">
+            Tracking active streaks, missed matches, and rating penalty multipliers across {{ total_completed }} completed matches.
+        </p>
+    </div>
+
+    <form action="{{ url_for('admin.rankings_recalculate') }}" method="POST" style="display: inline;">
+        <button type="submit" class="btn-admin btn-admin-gold">
+            <i class="fa-solid fa-arrows-rotate"></i> Recalculate Inactivity
+        </button>
+    </form>
+</div>
+
+<!-- Inactivity Rules Info Box -->
+<div class="admin-card" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+    <div style="font-weight: 700; color: #818cf8; font-size: 0.95rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-scale-balanced"></i> Inactivity Rule Mechanics
+    </div>
+    <p style="color: #cbd5e1; font-size: 0.82rem; line-height: 1.5;">
+        Players who miss matches gradually accumulate inactivity streaks. Missing &ge; 3 consecutive matches applies a progressive rating decay penalty (5% per missed match). Players with &lt; 50% participation are classified as unranked.
+    </p>
+</div>
+
+<!-- Inactivity Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th style="text-align: right;">Matches Played</th>
+                    <th style="text-align: right;">Participation Rate</th>
+                    <th style="text-align: right;">Consecutive Missed</th>
+                    <th style="text-align: right;">Penalty Multiplier</th>
+                    <th style="text-align: right;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if inactivity_list %}
+                    {% for p in inactivity_list %}
+                        <tr>
+                            <td>
+                                <strong style="color: #f8fafc;">{{ p.name }}</strong>
+                            </td>
+                            <td>
+                                <span style="color: #94a3b8; font-size: 0.82rem;">{{ p.team_name or 'Unassigned' }}</span>
+                            </td>
+                            <td style="text-align: right; color: #cbd5e1;">
+                                {{ p.matches_played }} / {{ total_completed }}
+                            </td>
+                            <td style="text-align: right; font-weight: 600; color: {% if p.participation_rate >= 0.5 %}#34d399{% else %}#f87171{% endif %};">
+                                {{ '%0.1f'|format(p.participation_rate * 100) }}%
+                            </td>
+                            <td style="text-align: right;">
+                                <span style="font-weight: 700; color: {% if p.consecutive_missed >= 3 %}#f87171{% elif p.consecutive_missed > 0 %}#fbbf24{% else %}#34d399{% endif %};">
+                                    {{ p.consecutive_missed }}
+                                </span>
+                            </td>
+                            <td style="text-align: right; font-weight: 600; color: #94a3b8;">
+                                {{ '%0.2f'|format(p.penalty_multiplier) }}x
+                            </td>
+                            <td style="text-align: right;">
+                                {% if p.is_active %}
+                                    <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                                        ACTIVE
+                                    </span>
+                                {% else %}
+                                    <span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                                        INACTIVE
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #64748b; padding: 2rem;">
+                            No player participation records available yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

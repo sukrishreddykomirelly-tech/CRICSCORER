@@ -1,0 +1,86 @@
+<!-- templates/admin/tournaments.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Tournament Management - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-trophy" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Tournament Management
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Configure leagues, tournament point systems, participating teams, and standings.</p>
+    </div>
+
+    <a href="{{ url_for('admin.tournament_create') }}" class="btn-admin btn-admin-primary">
+        <i class="fa-solid fa-plus"></i> Add New Tournament
+    </a>
+</div>
+
+<!-- Tournaments Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th>Tournament</th>
+                    <th>Teams</th>
+                    <th>Matches</th>
+                    <th>Point System (W / T / NR)</th>
+                    <th style="text-align: right; width: 220px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if tournaments %}
+                    {% for t in tournaments %}
+                        <tr>
+                            <td style="color: #64748b; font-weight: 600;">#{{ t.id }}</td>
+                            <td>
+                                <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem;">
+                                    {{ t.name }}
+                                </div>
+                            </td>
+                            <td>
+                                <span style="background: rgba(255,255,255,0.06); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">
+                                    {{ t.team_count }} teams
+                                </span>
+                            </td>
+                            <td>
+                                <span style="color: #cbd5e1;">{{ t.match_count }} matches</span>
+                                <span style="color: #64748b; font-size: 0.75rem;">({{ t.completed_match_count }} done)</span>
+                            </td>
+                            <td>
+                                <span style="color: #34d399; font-weight: 600;">{{ t.win_points }}</span> / 
+                                <span style="color: #fbbf24; font-weight: 600;">{{ t.tie_points }}</span> / 
+                                <span style="color: #818cf8; font-weight: 600;">{{ t.nr_points }}</span>
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.35rem;">
+                                    <a href="{{ url_for('admin.tournament_standings', tournament_id=t.id) }}" class="btn-admin btn-admin-gold btn-admin-sm" title="View points table & standings">
+                                        <i class="fa-solid fa-table-list"></i> Table
+                                    </a>
+                                    <a href="{{ url_for('admin.tournament_edit', tournament_id=t.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Edit tournament">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                    <form action="{{ url_for('admin.tournament_delete', tournament_id=t.id) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="btn-admin btn-admin-danger btn-admin-sm" data-confirm="Are you sure you want to delete tournament '{{ t.name }}'? Matches will remain but become independent." title="Delete tournament">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No tournaments configured. Click "Add New Tournament" to create one.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

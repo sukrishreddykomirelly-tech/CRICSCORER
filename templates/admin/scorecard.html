@@ -1,0 +1,171 @@
+<!-- templates/admin/scorecard.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Scorecard - Match #{{ match.id }} - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
+            <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc;">
+                Scorecard Inspector: Match #{{ match.id }}
+            </h1>
+        </div>
+        <p style="color: #94a3b8; font-size: 0.88rem;">
+            {{ match.team1_name }} vs {{ match.team2_name }} &bull; {{ match.ground or 'Ground N/A' }} &bull; {{ match.match_format }}
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.match_detail', match_id=match.id) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrow-left"></i> Match Hub
+        </a>
+        <a href="{{ url_for('admin.match_deliveries', match_id=match.id) }}" class="btn-admin btn-admin-indigo btn-admin-sm">
+            <i class="fa-solid fa-list-ol"></i> Deliveries
+        </a>
+        <a href="{{ url_for('match_view', match_id=match.id) }}" target="_blank" class="btn-admin btn-admin-primary btn-admin-sm">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Public Scorecard
+        </a>
+    </div>
+</div>
+
+{% if match_state and match_state.innings %}
+    {% for inn in match_state.innings %}
+        <div class="admin-card" style="margin-bottom: 2rem;">
+            <div class="admin-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 class="admin-card-title" style="font-size: 1.25rem;">
+                        <i class="fa-solid fa-shield" style="color: var(--admin-primary);"></i>
+                        Innings {{ inn.innings_number }}: {{ match_state.player_names.get(inn.batting_team_id, 'Batting Team') }}
+                    </h2>
+                </div>
+                <div style="font-size: 1.35rem; font-weight: 800; color: #34d399;">
+                    {{ inn.total_runs }} / {{ inn.total_wickets }}
+                    <span style="font-size: 0.85rem; font-weight: 500; color: #94a3b8;">
+                        ({{ (inn.balls_bowled // 6) }}.{{ (inn.balls_bowled % 6) }} Overs)
+                    </span>
+                </div>
+            </div>
+
+            <!-- Batting Table -->
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem;">Batting Figures</h3>
+            <div class="table-responsive-admin" style="margin-bottom: 1.5rem;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Batter</th>
+                            <th>Dismissal</th>
+                            <th style="text-align: right;">Runs (R)</th>
+                            <th style="text-align: right;">Balls (B)</th>
+                            <th style="text-align: right;">4s</th>
+                            <th style="text-align: right;">6s</th>
+                            <th style="text-align: right;">Strike Rate (SR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if inn.batting_card %}
+                            {% for pid, b in inn.batting_card.items() %}
+                                <tr>
+                                    <td>
+                                        <strong style="color: #f8fafc;">{{ match_state.player_names.get(pid, 'Player #' ~ pid) }}</strong>
+                                    </td>
+                                    <td style="font-size: 0.8rem; color: #94a3b8;">
+                                        {% if b.status == 'out' %}
+                                            <span style="color: #f87171;">{{ b.dismissal_type or 'out' }}</span>
+                                        {% elif b.status == 'not_out' %}
+                                            <span style="color: #34d399; font-weight: 600;">not out</span>
+                                        {% else %}
+                                            <span style="color: #64748b;">dnb</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align: right; font-weight: 700; color: #f8fafc;">{{ b.runs }}</td>
+                                    <td style="text-align: right; color: #cbd5e1;">{{ b.balls }}</td>
+                                    <td style="text-align: right; color: #38bdf8;">{{ b.fours }}</td>
+                                    <td style="text-align: right; color: #fbbf24;">{{ b.sixes }}</td>
+                                    <td style="text-align: right; color: #94a3b8; font-weight: 600;">
+                                        {{ '%.1f'|format((b.runs / b.balls * 100)) if b.balls > 0 else '0.0' }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #64748b; padding: 1rem;">No batting stats recorded yet.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Bowling Table -->
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem;">Bowling Figures</h3>
+            <div class="table-responsive-admin" style="margin-bottom: 1.5rem;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Bowler</th>
+                            <th style="text-align: right;">Overs (O)</th>
+                            <th style="text-align: right;">Maidens (M)</th>
+                            <th style="text-align: right;">Runs (R)</th>
+                            <th style="text-align: right;">Wickets (W)</th>
+                            <th style="text-align: right;">Economy (Econ)</th>
+                            <th style="text-align: right;">Dots (0s)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if inn.bowling_card %}
+                            {% for pid, b in inn.bowling_card.items() %}
+                                <tr>
+                                    <td>
+                                        <strong style="color: #f8fafc;">{{ match_state.player_names.get(pid, 'Player #' ~ pid) }}</strong>
+                                    </td>
+                                    <td style="text-align: right; color: #cbd5e1;">{{ (b.balls // 6) }}.{{ (b.balls % 6) }}</td>
+                                    <td style="text-align: right; color: #cbd5e1;">{{ b.maidens }}</td>
+                                    <td style="text-align: right; color: #cbd5e1;">{{ b.runs }}</td>
+                                    <td style="text-align: right; font-weight: 700; color: #818cf8;">{{ b.wickets }}</td>
+                                    <td style="text-align: right; color: #94a3b8; font-weight: 600;">
+                                        {{ '%.2f'|format((b.runs / (b.balls / 6))) if b.balls > 0 else '0.00' }}
+                                    </td>
+                                    <td style="text-align: right; color: #64748b;">{{ b.dots }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #64748b; padding: 1rem;">No bowling stats recorded yet.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Extras & Fall of Wickets -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 1rem;">
+                <div>
+                    <h4 style="font-size: 0.85rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.4rem;">Extras Breakdown</h4>
+                    <div style="font-size: 0.85rem; color: #cbd5e1;">
+                        Total: <strong>{{ inn.wides + inn.noballs + inn.byes + inn.legbyes }}</strong>
+                        (W: {{ inn.wides }}, NB: {{ inn.noballs }}, B: {{ inn.byes }}, LB: {{ inn.legbyes }})
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="font-size: 0.85rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.4rem;">Fall of Wickets</h4>
+                    <div style="font-size: 0.82rem; color: #cbd5e1;">
+                        {% if inn.fall_of_wickets %}
+                            {% for fow in inn.fall_of_wickets %}
+                                <span>{{ fow.score }}-{{ fow.wicket_num }} ({{ match_state.player_names.get(fow.player_id, 'P' ~ fow.player_id) }}, {{ fow.overs }} ov){% if not loop.last %}, {% endif %}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span style="color: #64748b;">No wickets fallen</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="admin-card" style="text-align: center; padding: 3rem; color: #64748b;">
+        <i class="fa-solid fa-circle-exclamation" style="font-size: 2rem; margin-bottom: 0.75rem;"></i>
+        <p>No scorecard data available for this match.</p>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,88 @@
+<!-- templates/admin/backups.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Backups &amp; Export - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-database" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Backups &amp; Data Export
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Export database snapshots, manage tables, and download JSON backups.</p>
+    </div>
+
+    <a href="{{ url_for('admin.backup_export') }}" class="btn-admin btn-admin-primary">
+        <i class="fa-solid fa-download"></i> Download Full JSON Backup
+    </a>
+</div>
+
+<!-- Persistence Info Card -->
+<div class="admin-card" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); padding: 1.25rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+        <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.25rem;"></i>
+        <h2 style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0;">Relational Persistence Online</h2>
+    </div>
+    <p style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5;">
+        All matches, rosters, deliveries, and statistical records are committed with strict foreign keys and transactional durability. You can export a portable JSON snapshot at any time for offline archiving or disaster recovery.
+    </p>
+</div>
+
+<!-- Table Records Breakdown -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="admin-card-header" style="padding: 1rem 1.25rem 0.5rem; margin-bottom: 0;">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-table" style="color: var(--admin-indigo);"></i> Database Table Inventory
+        </h2>
+    </div>
+
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Table Name</th>
+                    <th>Description</th>
+                    <th style="text-align: right;">Total Records</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong style="color: #f8fafc;">players</strong></td>
+                    <td style="color: #94a3b8;">Registered players and profile attributes</td>
+                    <td style="text-align: right; font-weight: 700; color: #34d399;">{{ stats.players }}</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #f8fafc;">teams</strong></td>
+                    <td style="color: #94a3b8;">Clubs and team identities</td>
+                    <td style="text-align: right; font-weight: 700; color: #34d399;">{{ stats.teams }}</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #f8fafc;">tournaments</strong></td>
+                    <td style="color: #94a3b8;">Tournaments and league configurations</td>
+                    <td style="text-align: right; font-weight: 700; color: #34d399;">{{ stats.tournaments }}</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #f8fafc;">matches</strong></td>
+                    <td style="color: #94a3b8;">Match fixtures, status, and results</td>
+                    <td style="text-align: right; font-weight: 700; color: #34d399;">{{ stats.matches }}</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #f8fafc;">innings</strong></td>
+                    <td style="color: #94a3b8;">Innings totals and cached summaries</td>
+                    <td style="text-align: right; font-weight: 700; color: #34d399;">{{ stats.innings }}</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #f8fafc;">deliveries</strong></td>
+                    <td style="color: #94a3b8;">Ball-by-ball delivery event logs</td>
+                    <td style="text-align: right; font-weight: 700; color: #34d399;">{{ stats.deliveries }}</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #f8fafc;">admin_audit_logs</strong></td>
+                    <td style="color: #94a3b8;">Administrative action audit trail</td>
+                    <td style="text-align: right; font-weight: 700; color: #fbbf24;">{{ stats.admin_audit_logs }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

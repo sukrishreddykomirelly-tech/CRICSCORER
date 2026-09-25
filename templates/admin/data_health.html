@@ -1,0 +1,84 @@
+<!-- templates/admin/data_health.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Data Health &amp; Diagnostics - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-heart-pulse" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Database Health &amp; Integrity
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Automated relational integrity diagnostics, state consistency checks, and self-healing tools.</p>
+    </div>
+
+    <form action="{{ url_for('admin.data_health_heal') }}" method="POST" style="display: inline;">
+        <button type="submit" class="btn-admin btn-admin-primary" data-confirm="Auto-Heal will re-verify and rebuild cached state totals for all matches in the system. Proceed?">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Run Auto-Heal &amp; Sync
+        </button>
+    </form>
+</div>
+
+<!-- Health Status Card -->
+<div class="admin-card" style="display: flex; align-items: center; justify-content: space-between; border-left: 6px solid {% if diagnostics.status == 'healthy' %}#10b981{% else %}#f87171{% endif %};">
+    <div>
+        <div style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.25rem;">Overall System State</div>
+        <div style="font-size: 1.35rem; font-weight: 800; color: {% if diagnostics.status == 'healthy' %}#34d399{% else %}#f87171{% endif %};">
+            {% if diagnostics.status == 'healthy' %}
+                <i class="fa-solid fa-circle-check"></i> All Systems Healthy &amp; Synchronized
+            {% else %}
+                <i class="fa-solid fa-triangle-exclamation"></i> {{ diagnostics.issues_found }} Consistency Discrepancies Found
+            {% endif %}
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.data_health') }}" class="btn-admin btn-admin-outline btn-admin-sm">
+            <i class="fa-solid fa-arrows-rotate"></i> Re-Scan
+        </a>
+    </div>
+</div>
+
+<!-- Diagnostics Checks Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="admin-card-header" style="padding: 1rem 1.25rem 0.5rem; margin-bottom: 0;">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-clipboard-check" style="color: var(--admin-indigo);"></i> Diagnostic Test Suite
+        </h2>
+    </div>
+
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 220px;">Diagnostic Check</th>
+                    <th style="width: 90px;">Result</th>
+                    <th>Details &amp; Findings</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for check in diagnostics.checks %}
+                    <tr>
+                        <td>
+                            <strong style="color: #f8fafc;">{{ check.name }}</strong>
+                        </td>
+                        <td>
+                            {% if check.status == 'PASS' %}
+                                <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                                    PASS
+                                </span>
+                            {% else %}
+                                <span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                                    FAIL
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="color: #cbd5e1; font-size: 0.85rem;">
+                            {{ check.detail }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

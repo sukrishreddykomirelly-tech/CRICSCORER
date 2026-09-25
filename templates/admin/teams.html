@@ -1,0 +1,105 @@
+<!-- templates/admin/teams.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Team Management - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-users" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Team Management
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Manage teams, squad rosters, logos, and overall match performance.</p>
+    </div>
+
+    <a href="{{ url_for('admin.team_create') }}" class="btn-admin btn-admin-primary">
+        <i class="fa-solid fa-plus"></i> Add New Team
+    </a>
+</div>
+
+<!-- Search Bar -->
+<div class="admin-card" style="padding: 1rem; margin-bottom: 1.25rem;">
+    <form action="{{ url_for('admin.teams_list') }}" method="GET" style="display: flex; gap: 0.75rem; align-items: center;">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search team by name..." class="admin-search-input" style="flex: 1; max-width: 400px; padding-left: 1rem;">
+        <button type="submit" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-magnifying-glass"></i> Search
+        </button>
+        {% if query %}
+            <a href="{{ url_for('admin.teams_list') }}" class="btn-admin btn-admin-outline">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Teams Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th>Team</th>
+                    <th>Squad Size</th>
+                    <th>Matches Played</th>
+                    <th>Matches Won</th>
+                    <th>Win Rate</th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if teams %}
+                    {% for t in teams %}
+                        <tr>
+                            <td style="color: #64748b; font-weight: 600;">#{{ t.id }}</td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    {% if t.logo_url %}
+                                        <img src="{{ t.logo_url }}" alt="{{ t.name }}" style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.05); object-fit: contain;">
+                                    {% else %}
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; color: #10b981; font-weight: 700;">{{ t.name[0] }}</div>
+                                    {% endif %}
+                                    <a href="{{ url_for('team_profile', team_id=t.id) }}" target="_blank" style="font-weight: 600; color: #f8fafc;" title="View team public profile">
+                                        {{ t.name }} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem; color: #64748b; margin-left: 0.25rem;"></i>
+                                    </a>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="background: rgba(255,255,255,0.06); padding: 0.2rem 0.6rem; border-radius: 6px; font-weight: 600;">
+                                    {{ t.squad_size }} players
+                                </span>
+                            </td>
+                            <td>{{ t.matches_played }}</td>
+                            <td style="color: #34d399; font-weight: 600;">{{ t.matches_won }}</td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                                        <div style="width: {{ t.win_rate }}%; height: 100%; background: #10b981;"></div>
+                                    </div>
+                                    <span style="font-size: 0.8rem; color: #94a3b8;">{{ t.win_rate }}%</span>
+                                </div>
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.35rem;">
+                                    <a href="{{ url_for('admin.team_edit', team_id=t.id) }}" class="btn-admin btn-admin-outline btn-admin-sm" title="Edit team & squad">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                    <form action="{{ url_for('admin.team_delete', team_id=t.id) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="btn-admin btn-admin-danger btn-admin-sm" data-confirm="Are you sure you want to delete team '{{ t.name }}'? Matches associated with this team must be deleted first." title="Delete team">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No teams found.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

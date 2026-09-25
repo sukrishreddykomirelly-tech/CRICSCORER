@@ -1,0 +1,116 @@
+<!-- templates/admin/audit_log.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Audit Log - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Administrative Audit Log
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Immutable log of administrative operations, metadata changes, ball corrections, and state resets.</p>
+    </div>
+
+    <!-- Purge Old Logs Form -->
+    <form action="{{ url_for('admin.audit_log_clear') }}" method="POST" style="display: flex; gap: 0.5rem; align-items: center;">
+        <select name="days" class="admin-search-input" style="width: auto; padding-left: 0.75rem;">
+            <option value="90">Older than 90 days</option>
+            <option value="60">Older than 60 days</option>
+            <option value="30">Older than 30 days</option>
+            <option value="7">Older than 7 days</option>
+        </select>
+        <button type="submit" class="btn-admin btn-admin-danger btn-admin-sm" data-confirm="Are you sure you want to purge historical audit logs matching this age?">
+            <i class="fa-solid fa-trash-can"></i> Purge Logs
+        </button>
+    </form>
+</div>
+
+<!-- Filter Bar -->
+<div class="admin-card" style="padding: 1rem; margin-bottom: 1.25rem;">
+    <form action="{{ url_for('admin.audit_log') }}" method="GET" style="display: flex; gap: 0.75rem; align-items: center;">
+        <input type="text" name="action" value="{{ action_filter }}" placeholder="Filter by action name (e.g. edit_delivery, delete_match)..." class="admin-search-input" style="flex: 1; max-width: 400px; padding-left: 1rem;">
+        <button type="submit" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-filter"></i> Filter
+        </button>
+        {% if action_filter %}
+            <a href="{{ url_for('admin.audit_log') }}" class="btn-admin btn-admin-outline">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Audit Log Table -->
+<div class="admin-card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive-admin" style="margin-bottom: 0; border: none;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 170px;">Timestamp</th>
+                    <th>Admin</th>
+                    <th>Action</th>
+                    <th>Target Type</th>
+                    <th>Target ID</th>
+                    <th>Details</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if logs %}
+                    {% for l in logs %}
+                        <tr>
+                            <td style="color: #64748b; font-size: 0.78rem; white-space: nowrap;">
+                                {{ l.timestamp }}
+                            </td>
+                            <td>
+                                <span style="background: rgba(255, 255, 255, 0.05); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; color: #cbd5e1; font-size: 0.8rem;">
+                                    {{ l.admin_username }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong style="color: #f8fafc;">{{ l.action }}</strong>
+                            </td>
+                            <td>
+                                <span style="color: #94a3b8; font-size: 0.8rem;">{{ l.target_type or '-' }}</span>
+                            </td>
+                            <td style="color: #64748b; font-weight: 600;">
+                                {% if l.target_id %}#{{ l.target_id }}{% else %}-{% endif %}
+                            </td>
+                            <td style="color: #cbd5e1; font-size: 0.82rem;">
+                                {{ l.details or '-' }}
+                            </td>
+                            <td>
+                                {% if l.result == 'success' %}
+                                    <span style="color: #34d399; font-weight: 700; font-size: 0.75rem;">SUCCESS</span>
+                                {% else %}
+                                    <span style="color: #f87171; font-weight: 700; font-size: 0.75rem;">{{ l.result|upper }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem; color: #64748b;">
+                            No audit log records found.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid var(--admin-border); font-size: 0.85rem; color: #94a3b8;">
+            <div>Showing page {{ page }} of {{ total_pages }} ({{ total_count }} actions)</div>
+            <div style="display: flex; gap: 0.35rem;">
+                {% if page > 1 %}
+                    <a href="{{ url_for('admin.audit_log', page=page-1, action=action_filter) }}" class="btn-admin btn-admin-outline btn-admin-sm">Previous</a>
+                {% endif %}
+                {% if page < total_pages %}
+                    <a href="{{ url_for('admin.audit_log', page=page+1, action=action_filter) }}" class="btn-admin btn-admin-outline btn-admin-sm">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
