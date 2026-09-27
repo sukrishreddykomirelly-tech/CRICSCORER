@@ -97,10 +97,10 @@
                             <td>
                                 <div style="font-size: 0.82rem;">
                                     {% if m.i1_runs is not none %}
-                                        <div><strong>1st:</strong> {{ m.i1_runs }}/{{ m.i1_wkts }} ({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</div>
+                                        <div><strong>{{ m.i1_batting_team_name or '1st' }}:</strong> {{ m.i1_runs }}/{{ m.i1_wkts }} ({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</div>
                                     {% endif %}
                                     {% if m.i2_runs is not none %}
-                                        <div><strong>2nd:</strong> {{ m.i2_runs }}/{{ m.i2_wkts }} ({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</div>
+                                        <div><strong>{{ m.i2_batting_team_name or '2nd' }}:</strong> {{ m.i2_runs }}/{{ m.i2_wkts }} ({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</div>
                                     {% endif %}
                                 </div>
                             </td>

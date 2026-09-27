@@ -26,13 +26,14 @@ def calculate_awards(match_state):
         for p_id in players:
             player_teams[p_id] = match_state.innings[0].batting_team_id
 
-    # 2. Initialize rating stats for all players
+    # 2. Initialize rating stats for all players with normalized integer IDs
     impact_stats = {}
-    for p_id, p_name in players.items():
+    for raw_p_id, p_name in players.items():
+        p_id = int(raw_p_id)
         impact_stats[p_id] = {
             "id": p_id,
             "name": p_name,
-            "team_id": player_teams.get(p_id),
+            "team_id": player_teams.get(p_id) or player_teams.get(str(p_id)),
             "batting_runs": 0,
             "batting_balls": 0,
             "batting_fours": 0,
@@ -64,42 +65,41 @@ def calculate_awards(match_state):
         chase_innings = innings_list[1]
         target_runs = innings_list[0].total_runs + 1
 
-    # 3. Populate raw statistics from innings scorecards
+    # 3. Populate raw statistics from innings scorecards (accumulate with += across innings)
     for inn_idx, inn in enumerate(innings_list):
-        is_chase_inn = (inn_idx == 1)
-        
         # Batting Stats
-        for p_id, b_data in inn.batting_scores.items():
-            p_id = int(p_id)
+        for raw_p_id, b_data in inn.batting_scores.items():
+            p_id = int(raw_p_id)
             if p_id not in impact_stats:
                 continue
             p_stat = impact_stats[p_id]
-            p_stat["batting_runs"] = b_data.get("runs", 0)
-            p_stat["batting_balls"] = b_data.get("balls", 0)
-            p_stat["batting_fours"] = b_data.get("fours", 0)
-            p_stat["batting_sixes"] = b_data.get("sixes", 0)
-            p_stat["batting_out"] = (b_data.get("status") == "out")
+            p_stat["batting_runs"] += b_data.get("runs", 0)
+            p_stat["batting_balls"] += b_data.get("balls", 0)
+            p_stat["batting_fours"] += b_data.get("fours", 0)
+            p_stat["batting_sixes"] += b_data.get("sixes", 0)
+            if b_data.get("status") == "out":
+                p_stat["batting_out"] = True
 
         # Bowling Stats
-        for p_id, bowl_data in inn.bowling_scores.items():
-            p_id = int(p_id)
+        for raw_p_id, bowl_data in inn.bowling_scores.items():
+            p_id = int(raw_p_id)
             if p_id not in impact_stats:
                 continue
             p_stat = impact_stats[p_id]
-            p_stat["bowling_balls"] = bowl_data.get("balls", 0)
-            p_stat["bowling_runs"] = bowl_data.get("runs_conceded", 0)
-            p_stat["bowling_wickets"] = bowl_data.get("wickets", 0)
-            p_stat["bowling_maidens"] = bowl_data.get("maidens", 0)
+            p_stat["bowling_balls"] += bowl_data.get("balls", 0)
+            p_stat["bowling_runs"] += bowl_data.get("runs_conceded", 0)
+            p_stat["bowling_wickets"] += bowl_data.get("wickets", 0)
+            p_stat["bowling_maidens"] += bowl_data.get("maidens", 0)
 
         # Fielding Stats (catches, stumpings, run-outs)
-        for p_id, field_data in inn.fielding_scores.items():
-            p_id = int(p_id)
+        for raw_p_id, field_data in inn.fielding_scores.items():
+            p_id = int(raw_p_id)
             if p_id not in impact_stats:
                 continue
             p_stat = impact_stats[p_id]
-            p_stat["fielding_catches"] = field_data.get("catches", 0)
-            p_stat["fielding_stumpings"] = field_data.get("stumpings", 0)
-            p_stat["fielding_run_outs"] = field_data.get("run_outs", 0)
+            p_stat["fielding_catches"] += field_data.get("catches", 0)
+            p_stat["fielding_stumpings"] += field_data.get("stumpings", 0)
+            p_stat["fielding_run_outs"] += field_data.get("run_outs", 0)
 
     # 4. Calculate Batting Impact
     for p_id, p_stat in impact_stats.items():
@@ -113,7 +113,7 @@ def calculate_awards(match_state):
             
         bat_imp = runs
         # Boundaries bonus
-        bat_imp += fours * 1 + sixes * 2
+        bat_imp += (fours * 1) + (sixes * 2)
         
         # Milestones (non-stackable)
         if runs >= 100:
@@ -153,7 +153,6 @@ def calculate_awards(match_state):
                     break
             
             if team_runs > 0:
-                # Scored >= 35% of winning team total OR not out at the end of a successful chase with >= 20 runs
                 is_chase_winner = (chase_innings and chase_innings.batting_team_id == winner_id)
                 scored_35_percent = (runs >= team_runs * 0.35)
                 not_out_in_chase = (is_chase_winner and not p_stat["batting_out"] and runs >= 20)
@@ -175,14 +174,14 @@ def calculate_awards(match_state):
             continue
             
         bowl_imp = wickets * 20
-        # Economy rate bonus (min 12 legal balls)
-        if balls_bowled >= 12:
+        # Economy rate bonus (min 6 legal balls / 1 over)
+        if balls_bowled >= 6:
             econ = (runs_con * 6.0) / balls_bowled
-            if econ < 5.00:
+            if econ <= 5.00:
                 bowl_imp += 10
-            elif econ < 7.00:
+            elif econ <= 7.00:
                 bowl_imp += 6
-            elif econ < 9.00:
+            elif econ <= 8.50:
                 bowl_imp += 2
                 
         # Wicket haul bonus
@@ -200,11 +199,13 @@ def calculate_awards(match_state):
         imp_wkts = 0
         for inn in innings_list:
             for d in inn.deliveries:
-                if d.get("bowler_id") == p_id and d.get("is_wicket") == 1:
+                b_id = d.get("bowler_id")
+                if b_id is not None and int(b_id) == p_id and d.get("is_wicket") == 1:
                     dismissed_id = d.get("player_dismissed_id")
-                    if dismissed_id:
-                        # Find dismissed batter's score
-                        bat_score = inn.batting_scores.get(dismissed_id, {}).get("runs", 0)
+                    if dismissed_id is not None:
+                        bat_score = inn.batting_scores.get(int(dismissed_id), {}).get("runs", 0)
+                        if bat_score == 0:
+                            bat_score = inn.batting_scores.get(str(dismissed_id), {}).get("runs", 0)
                         if bat_score >= 30:
                             imp_wkts += 1
         
@@ -221,31 +222,47 @@ def calculate_awards(match_state):
         if catches == 0 and stumpings == 0 and run_outs == 0:
             continue
             
-        # Catches (distinguish difficult: catch of a batsman with >= 30 runs)
+        # Catches (distinguish difficult: catch of a batter with >= 30 runs)
         catches_imp = 0
+        detailed_catches_found = 0
         for inn in innings_list:
             for d in inn.deliveries:
-                if d.get("fielder_id") == p_id and d.get("is_wicket") == 1:
-                    dismissed_id = d.get("player_dismissed_id")
-                    if dismissed_id and d.get("wicket_type") == "caught":
-                        bat_score = inn.batting_scores.get(dismissed_id, {}).get("runs", 0)
+                f_id = d.get("fielder_id")
+                if f_id is not None and int(f_id) == p_id and d.get("is_wicket") == 1:
+                    w_type = d.get("wicket_type", "")
+                    if w_type == "caught":
+                        detailed_catches_found += 1
+                        dismissed_id = d.get("player_dismissed_id")
+                        bat_score = 0
+                        if dismissed_id is not None:
+                            bat_score = inn.batting_scores.get(int(dismissed_id), {}).get("runs", 0)
+                            if bat_score == 0:
+                                bat_score = inn.batting_scores.get(str(dismissed_id), {}).get("runs", 0)
                         if bat_score >= 30:
-                            catches_imp += 15 # Difficult/important
+                            catches_imp += 15  # Key/difficult catch
                         else:
-                            catches_imp += 10 # Normal
+                            catches_imp += 10  # Standard catch
                             
-        field_imp = catches_imp + stumpings * 12 + run_outs * 15
+        # Ensure all recorded catches award points even if delivery lacked fielder tag
+        if detailed_catches_found < catches:
+            catches_imp += (catches - detailed_catches_found) * 10
+            
+        field_imp = catches_imp + (stumpings * 12) + (run_outs * 15)
         
-        # Match changing fielding (dismissal of a batsman who scored >= 50 runs)
+        # Match changing fielding (dismissal of a batter who scored >= 50 runs)
         match_changing = False
         for inn in innings_list:
             for d in inn.deliveries:
-                if d.get("fielder_id") == p_id and d.get("is_wicket") == 1:
+                f_id = d.get("fielder_id")
+                if f_id is not None and int(f_id) == p_id and d.get("is_wicket") == 1:
                     dismissed_id = d.get("player_dismissed_id")
-                    if dismissed_id:
-                        bat_score = inn.batting_scores.get(dismissed_id, {}).get("runs", 0)
+                    if dismissed_id is not None:
+                        bat_score = inn.batting_scores.get(int(dismissed_id), {}).get("runs", 0)
+                        if bat_score == 0:
+                            bat_score = inn.batting_scores.get(str(dismissed_id), {}).get("runs", 0)
                         if bat_score >= 50:
                             match_changing = True
+                            break
                             
         if match_changing:
             field_imp += 5
@@ -268,8 +285,11 @@ def calculate_awards(match_state):
                     elif prop >= 0.25:
                         sit_imp += 10
                     # Winning runs scorer
-                    elif chase_innings.deliveries and chase_innings.deliveries[-1].get("striker_id") == p_id:
-                        sit_imp += 5
+                    elif chase_innings.deliveries:
+                        last_del = chase_innings.deliveries[-1]
+                        last_str = last_del.get("striker_id")
+                        if last_str is not None and int(last_str) == p_id:
+                            sit_imp += 5
             
             # 2. Defending a total contribution
             else:
@@ -280,33 +300,38 @@ def calculate_awards(match_state):
                 run_outs = p_stat["fielding_run_outs"]
                 
                 # Bowling defense
-                if wickets >= 3 or (balls >= 12 and (runs_con * 6.0 / balls) < 5.0):
+                if wickets >= 3 or (balls >= 6 and (runs_con * 6.0 / balls) <= 5.0):
                     sit_imp += 10
                 # Taken final wicket to seal win
                 for inn in innings_list:
-                    if inn.batting_team_id != winner_id and inn.total_wickets >= inn.players_per_team - 1:
-                        if inn.deliveries and inn.deliveries[-1].get("bowler_id") == p_id and inn.deliveries[-1].get("is_wicket") == 1:
-                            sit_imp += 5
+                    if inn.batting_team_id != winner_id and inn.total_wickets >= getattr(inn, 'players_per_team', 11) - 1:
+                        if inn.deliveries:
+                            last_del = inn.deliveries[-1]
+                            b_id = last_del.get("bowler_id")
+                            if b_id is not None and int(b_id) == p_id and last_del.get("is_wicket") == 1:
+                                sit_imp += 5
                 
                 # Fielding defense
                 if catches >= 2 or run_outs >= 1:
                     sit_imp += 5
                     
             # 3. High pressure moments (Partnership & Death Over Wickets)
-            # 50+ runs partnership contribution
             for inn in innings_list:
                 for part in inn.partnerships:
-                    if part.get("batter1_id") == p_id or part.get("batter2_id") == p_id:
+                    b1 = part.get("batter1_id")
+                    b2 = part.get("batter2_id")
+                    if (b1 is not None and int(b1) == p_id) or (b2 is not None and int(b2) == p_id):
                         if part.get("runs", 0) >= 50:
                             sit_imp += 5
                             
             # Death over wickets (last 3 overs of defending innings, under pressure)
             for inn in innings_list:
-                if inn.batting_team_id != winner_id and inn.overs_limit > 3:
-                    death_start_over = inn.overs_limit - 3
+                overs_lim = getattr(inn, 'overs_limit', 20)
+                if inn.batting_team_id != winner_id and overs_lim > 3:
+                    death_start_over = overs_lim - 3
                     for d in inn.deliveries:
-                        if d.get("bowler_id") == p_id and d.get("is_wicket") == 1 and d.get("over_number", 0) > death_start_over:
-                            # Verify if chase was close
+                        b_id = d.get("bowler_id")
+                        if b_id is not None and int(b_id) == p_id and d.get("is_wicket") == 1 and d.get("over_number", 0) > death_start_over:
                             rem_runs = (target_runs or 0) - inn.total_runs
                             if rem_runs < 20:
                                 sit_imp += 5
@@ -394,9 +419,16 @@ def calculate_awards(match_state):
             reasons.append(f"{motm['bowling_wickets']} wickets")
         if motm["bowling_balls"] >= 6:
             econ = round(motm["bowling_runs"] * 6.0 / motm["bowling_balls"], 2)
-            reasons.append(f"Economy {econ}")
+            if econ <= 7.00:
+                reasons.append(f"Economy {econ}")
         if motm["important_wickets"] > 0:
             reasons.append(f"Dismissed {motm['important_wickets']} key batter(s)")
+        if motm["fielding_catches"] > 0:
+            reasons.append(f"{motm['fielding_catches']} catch(es)")
+        if motm["fielding_run_outs"] > 0:
+            reasons.append(f"{motm['fielding_run_outs']} run out(s)")
+        if motm["fielding_stumpings"] > 0:
+            reasons.append(f"{motm['fielding_stumpings']} stumping(s)")
         if motm["situation_impact"] > 5:
             if chase_innings and motm["team_id"] == chase_innings.batting_team_id:
                 reasons.append("Strong chase performance")

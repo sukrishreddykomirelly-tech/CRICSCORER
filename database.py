@@ -409,14 +409,65 @@ def search_all(query):
         "tournaments": tournaments
     }
 
+def _map_match_team_scores(m):
+    """
+    Maps innings scores to team1 and team2 based on batting_team_id.
+    Ensures scores are accurately attributed to the respective teams.
+    """
+    m['team1_runs'] = None
+    m['team1_wkts'] = None
+    m['team1_balls'] = None
+    m['team2_runs'] = None
+    m['team2_wkts'] = None
+    m['team2_balls'] = None
+
+    t1_id = m.get('team1_id')
+    t2_id = m.get('team2_id')
+    i1_bat = m.get('i1_batting_team_id')
+    i2_bat = m.get('i2_batting_team_id')
+
+    if i1_bat is not None:
+        if i1_bat == t1_id:
+            m['team1_runs'] = m.get('i1_runs')
+            m['team1_wkts'] = m.get('i1_wkts')
+            m['team1_balls'] = m.get('i1_balls')
+        elif i1_bat == t2_id:
+            m['team2_runs'] = m.get('i1_runs')
+            m['team2_wkts'] = m.get('i1_wkts')
+            m['team2_balls'] = m.get('i1_balls')
+
+    if i2_bat is not None:
+        if i2_bat == t1_id:
+            m['team1_runs'] = m.get('i2_runs')
+            m['team1_wkts'] = m.get('i2_wkts')
+            m['team1_balls'] = m.get('i2_balls')
+        elif i2_bat == t2_id:
+            m['team2_runs'] = m.get('i2_runs')
+            m['team2_wkts'] = m.get('i2_wkts')
+            m['team2_balls'] = m.get('i2_balls')
+
+    # Fallback if batting_team_id was missing (e.g. legacy records or mock tests)
+    if m['team1_runs'] is None and m['team2_runs'] is None and (m.get('i1_runs') is not None or m.get('i2_runs') is not None):
+        m['team1_runs'] = m.get('i1_runs')
+        m['team1_wkts'] = m.get('i1_wkts')
+        m['team1_balls'] = m.get('i1_balls')
+        m['team2_runs'] = m.get('i2_runs')
+        m['team2_wkts'] = m.get('i2_wkts')
+        m['team2_balls'] = m.get('i2_balls')
+
+    return m
+
 def get_recent_matches(limit=5):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT m.id, m.match_date, m.match_time, m.ground, m.match_format, m.status, m.result_margin,
+               m.team1_id, m.team2_id,
                t1.name AS team1_name, t2.name AS team2_name,
                t1.logo_url AS team1_logo, t2.logo_url AS team2_logo,
+               i1.batting_team_id AS i1_batting_team_id,
                i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
+               i2.batting_team_id AS i2_batting_team_id,
                i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls
         FROM matches m
         JOIN teams t1 ON m.team1_id = t1.id
@@ -427,17 +478,18 @@ def get_recent_matches(limit=5):
     """, (limit,))
     rows = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    return [_map_match_team_scores(dict(row)) for row in rows]
 
 def get_live_matches():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT m.id, m.ground, m.match_format, m.status, m.overs_limit,
+               m.team1_id, m.team2_id,
                t1.name AS team1_name, t2.name AS team2_name,
                t1.logo_url AS team1_logo, t2.logo_url AS team2_logo,
-               i1.id AS i1_id, i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
-               i2.id AS i2_id, i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls,
+               i1.id AS i1_id, i1.batting_team_id AS i1_batting_team_id, i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
+               i2.id AS i2_id, i2.batting_team_id AS i2_batting_team_id, i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls,
                m.current_innings_id
         FROM matches m
         JOIN teams t1 ON m.team1_id = t1.id
@@ -449,7 +501,7 @@ def get_live_matches():
     """, ())
     rows = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    return [_map_match_team_scores(dict(row)) for row in rows]
 
 
 # --- DYNAMIC PLAYER PROFILE STATISTICS ---
@@ -850,7 +902,9 @@ def get_tournament_details(tournament_id):
     # 3. Retrieve all matches for this tournament to calculate points & NRR
     cursor.execute("""
         SELECT m.id, m.team1_id, m.team2_id, m.status, m.winner_id, m.result_margin, m.overs_limit,
+               i1.batting_team_id AS i1_batting_team_id,
                i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
+               i2.batting_team_id AS i2_batting_team_id,
                i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls
         FROM matches m
         LEFT JOIN innings i1 ON m.id = i1.match_id AND i1.innings_number = 1
@@ -919,7 +973,6 @@ def get_tournament_details(tournament_id):
             table[t1]['points'] += tie_pts
             table[t2]['points'] += tie_pts
             # Tie typically has 0 NRR difference, but let's count actual runs scored/overs faced to be precise
-            # (though in many leagues ties do not affect NRR, standard ICC rules still accumulate runs/overs)
         elif winner == t1:
             table[t1]['won'] += 1
             table[t1]['points'] += win_pts
@@ -940,44 +993,47 @@ def get_tournament_details(tournament_id):
         i2_wkts = m['i2_wkts'] or 0
         i2_balls = m['i2_balls'] or 0
         
-        # Team 1 is Innings 1 batting (always batting first)
-        # Team 2 is Innings 2 batting
+        # Resolve actual batting & bowling teams for Innings 1 and Innings 2
+        bat_team_1 = m['i1_batting_team_id'] if m['i1_batting_team_id'] is not None else t1
+        bowl_team_1 = t2 if bat_team_1 == t1 else t1
+
+        bat_team_2 = m['i2_batting_team_id'] if m['i2_batting_team_id'] is not None else bowl_team_1
+        bowl_team_2 = t1 if bat_team_2 == t2 else t2
         
-        # --- TEAM 1 BATTING (Innings 1) ---
-        table[t1]['total_runs_scored'] += i1_runs
-        table[t2]['total_runs_conceded'] += i1_runs
-        
-        # ICC Rule: If team is bowled out, overs faced is set to maximum overs limit
-        # In a custom/T20 match, maximum wickets limit is players_per_team - 1
-        # Let's query player count for playing XI of team 1
-        cursor.execute("SELECT COUNT(*) FROM match_players WHERE match_id = ? AND team_id = ?", (m['id'], t1))
-        t1_players_count = cursor.fetchone()[0] or 11
-        t1_all_out_wkts = t1_players_count - 1
-        
-        if i1_wkts >= t1_all_out_wkts:
-            table[t1]['total_overs_faced'] += overs_limit
-            table[t2]['total_overs_bowled'] += overs_limit
-        else:
-            # Add actual overs faced
-            overs_faced_val = (i1_balls // 6) + (i1_balls % 6) / 6.0
-            table[t1]['total_overs_faced'] += overs_faced_val
-            table[t2]['total_overs_bowled'] += overs_faced_val
+        # --- Innings 1 ---
+        if bat_team_1 in table and bowl_team_1 in table:
+            table[bat_team_1]['total_runs_scored'] += i1_runs
+            table[bowl_team_1]['total_runs_conceded'] += i1_runs
             
-        # --- TEAM 2 BATTING (Innings 2) ---
-        table[t2]['total_runs_scored'] += i2_runs
-        table[t1]['total_runs_conceded'] += i2_runs
-        
-        cursor.execute("SELECT COUNT(*) FROM match_players WHERE match_id = ? AND team_id = ?", (m['id'], t2))
-        t2_players_count = cursor.fetchone()[0] or 11
-        t2_all_out_wkts = t2_players_count - 1
-        
-        if i2_wkts >= t2_all_out_wkts:
-            table[t2]['total_overs_faced'] += overs_limit
-            table[t1]['total_overs_bowled'] += overs_limit
-        else:
-            overs_faced_val = (i2_balls // 6) + (i2_balls % 6) / 6.0
-            table[t2]['total_overs_faced'] += overs_faced_val
-            table[t1]['total_overs_bowled'] += overs_faced_val
+            # ICC Rule: If team is bowled out, overs faced is set to maximum overs limit
+            cursor.execute("SELECT COUNT(*) FROM match_players WHERE match_id = ? AND team_id = ?", (m['id'], bat_team_1))
+            bat1_players_count = cursor.fetchone()[0] or 11
+            bat1_all_out_wkts = bat1_players_count - 1
+            
+            if i1_wkts >= bat1_all_out_wkts:
+                table[bat_team_1]['total_overs_faced'] += overs_limit
+                table[bowl_team_1]['total_overs_bowled'] += overs_limit
+            else:
+                overs_faced_val = (i1_balls // 6) + (i1_balls % 6) / 6.0
+                table[bat_team_1]['total_overs_faced'] += overs_faced_val
+                table[bowl_team_1]['total_overs_bowled'] += overs_faced_val
+            
+        # --- Innings 2 ---
+        if bat_team_2 in table and bowl_team_2 in table:
+            table[bat_team_2]['total_runs_scored'] += i2_runs
+            table[bowl_team_2]['total_runs_conceded'] += i2_runs
+            
+            cursor.execute("SELECT COUNT(*) FROM match_players WHERE match_id = ? AND team_id = ?", (m['id'], bat_team_2))
+            bat2_players_count = cursor.fetchone()[0] or 11
+            bat2_all_out_wkts = bat2_players_count - 1
+            
+            if i2_wkts >= bat2_all_out_wkts:
+                table[bat_team_2]['total_overs_faced'] += overs_limit
+                table[bowl_team_2]['total_overs_bowled'] += overs_limit
+            else:
+                overs_faced_val = (i2_balls // 6) + (i2_balls % 6) / 6.0
+                table[bat_team_2]['total_overs_faced'] += overs_faced_val
+                table[bowl_team_2]['total_overs_bowled'] += overs_faced_val
 
     # Finalize NRR calculations and sort table
     points_table = []

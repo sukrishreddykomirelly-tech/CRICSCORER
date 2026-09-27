@@ -110,10 +110,10 @@
 
                     <div style="background: rgba(0, 0, 0, 0.25); border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; font-size: 0.82rem; color: #cbd5e1;">
                         {% if m.i1_runs is not none %}
-                            <div><strong>1st Inn:</strong> {{ m.i1_runs }}/{{ m.i1_wkts }} ({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</div>
+                            <div><strong>{{ m.i1_batting_team_name or '1st Inn' }}:</strong> {{ m.i1_runs }}/{{ m.i1_wkts }} ({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</div>
                         {% endif %}
                         {% if m.i2_runs is not none %}
-                            <div><strong>2nd Inn:</strong> {{ m.i2_runs }}/{{ m.i2_wkts }} ({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</div>
+                            <div><strong>{{ m.i2_batting_team_name or '2nd Inn' }}:</strong> {{ m.i2_runs }}/{{ m.i2_wkts }} ({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</div>
                         {% endif %}
                         {% if m.striker_name %}
                             <div style="margin-top: 0.25rem; color: #10b981;">

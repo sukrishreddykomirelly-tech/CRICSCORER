@@ -527,6 +527,10 @@
                     <i class="fa-solid fa-user-clock"></i>
                     <span>Inactivity Streaks</span>
                 </a>
+                <a href="{{ url_for('admin.statistics_dashboard') }}" class="admin-nav-link {% if 'statistic' in request.endpoint %}active{% endif %}">
+                    <i class="fa-solid fa-chart-column" style="color: var(--admin-gold);"></i>
+                    <span>Advanced Statistics</span>
+                </a>
 
                 <div class="admin-nav-category">System &amp; Diagnostics</div>
                 <a href="{{ url_for('admin.data_health') }}" class="admin-nav-link {% if request.endpoint == 'admin.data_health' %}active{% endif %}">

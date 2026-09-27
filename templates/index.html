@@ -131,8 +131,8 @@
                                         <span class="team-name">{{ m.team1_name }}</span>
                                     </div>
                                     <div class="team-score">
-                                        {% if m.i1_runs is not none %}
-                                            {{ m.i1_runs }}/{{ m.i1_wkts }} <span class="team-score-wkts">({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</span>
+                                        {% if m.team1_runs is not none %}
+                                            {{ m.team1_runs }}/{{ m.team1_wkts }} <span class="team-score-wkts">({{ (m.team1_balls // 6) }}.{{ (m.team1_balls % 6) }} ov)</span>
                                         {% else %}
                                             -
                                         {% endif %}
@@ -144,8 +144,8 @@
                                         <span class="team-name">{{ m.team2_name }}</span>
                                     </div>
                                     <div class="team-score">
-                                        {% if m.i2_runs is not none %}
-                                            {{ m.i2_runs }}/{{ m.i2_wkts }} <span class="team-score-wkts">({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</span>
+                                        {% if m.team2_runs is not none %}
+                                            {{ m.team2_runs }}/{{ m.team2_wkts }} <span class="team-score-wkts">({{ (m.team2_balls // 6) }}.{{ (m.team2_balls % 6) }} ov)</span>
                                         {% else %}
                                             -
                                         <!-- If toss is done but innings not started yet -->
@@ -193,7 +193,7 @@
                                             <span class="team-name">{{ m.team1_name }}</span>
                                         </div>
                                         <span class="team-score">
-                                            {% if m.i1_runs is not none %}{{ m.i1_runs }}/{{ m.i1_wkts }} <span class="team-score-wkts">({{ (m.i1_balls // 6) }}.{{ (m.i1_balls % 6) }} ov)</span>{% else %}-{% endif %}
+                                            {% if m.team1_runs is not none %}{{ m.team1_runs }}/{{ m.team1_wkts }} <span class="team-score-wkts">({{ (m.team1_balls // 6) }}.{{ (m.team1_balls % 6) }} ov)</span>{% else %}-{% endif %}
                                         </span>
                                     </div>
                                     <div class="team-row">
@@ -202,7 +202,7 @@
                                             <span class="team-name">{{ m.team2_name }}</span>
                                         </div>
                                         <span class="team-score">
-                                            {% if m.i2_runs is not none %}{{ m.i2_runs }}/{{ m.i2_wkts }} <span class="team-score-wkts">({{ (m.i2_balls // 6) }}.{{ (m.i2_balls % 6) }} ov)</span>{% else %}-{% endif %}
+                                            {% if m.team2_runs is not none %}{{ m.team2_runs }}/{{ m.team2_wkts }} <span class="team-score-wkts">({{ (m.team2_balls // 6) }}.{{ (m.team2_balls % 6) }} ov)</span>{% else %}-{% endif %}
                                         </span>
                                     </div>
                                 </div>

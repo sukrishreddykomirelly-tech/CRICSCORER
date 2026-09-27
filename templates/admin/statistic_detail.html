@@ -1,0 +1,270 @@
+<!-- templates/admin/statistic_detail.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}{{ meta.title }} - Advanced Statistics - CricScorer Admin{% endblock %}
+
+{% block content %}
+<!-- Back link and Title Header -->
+<div style="margin-bottom: 1.5rem;">
+    <a href="{{ url_for('admin.statistics_dashboard') }}" style="color: #94a3b8; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem;">
+        <i class="fa-solid fa-arrow-left"></i> Back to All Statistics
+    </a>
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(255,255,255,0.05); color: {{ meta.color }}; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; border: 1px solid rgba(255,255,255,0.1);">
+                <i class="{{ meta.icon }}"></i>
+            </div>
+            <div>
+                <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.15rem;">{{ meta.title }}</h1>
+                <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: #94a3b8;">{{ meta.category }} Statistics</span>
+            </div>
+        </div>
+
+        <!-- Export CSV button -->
+        {% if cached and cached.result %}
+        <a href="{{ url_for('admin.statistic_export', stat_key=stat_key, **params) }}" class="btn-admin btn-admin-outline">
+            <i class="fa-solid fa-file-csv"></i> Export CSV
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Controls & Calculation Card -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-sliders" style="color: var(--admin-primary);"></i> Calculation Parameters &amp; Freshness
+        </h2>
+        
+        <!-- Status badge -->
+        {% if not cached %}
+            <span style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 6px;">
+                <i class="fa-solid fa-clock"></i> Not Calculated Yet
+            </span>
+        {% elif is_outdated %}
+            <span style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 6px;" title="New completed matches available">
+                <i class="fa-solid fa-arrows-rotate"></i> OUTDATED (New Match Completed)
+            </span>
+        {% else %}
+            <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 6px;">
+                <i class="fa-solid fa-circle-check"></i> UP TO DATE
+            </span>
+        {% endif %}
+    </div>
+
+    <p style="color: #94a3b8; font-size: 0.88rem; margin-bottom: 1.25rem;">
+        {{ meta.description }}
+    </p>
+
+    <!-- Calculation Form -->
+    <form action="{{ url_for('admin.statistic_calculate', stat_key=stat_key) }}" method="POST" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        {% if meta.has_params %}
+        <div style="min-width: 220px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.4rem;">
+                {{ meta.param_label }}:
+            </label>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="number" name="{{ meta.param_name }}" id="paramInput"
+                       value="{{ params.get(meta.param_name, meta.default_params.get(meta.param_name)) }}"
+                       min="1" step="{{ '0.1' if meta.param_type == 'float' else '1' }}"
+                       class="admin-form-input" style="width: 120px; padding: 0.5rem 0.75rem; font-size: 0.9rem;" required>
+
+                <!-- Quick Presets -->
+                <div style="display: flex; gap: 0.3rem;">
+                    {% for opt in meta.preset_options %}
+                    <button type="button" class="btn-admin btn-admin-outline btn-admin-sm"
+                            onclick="document.getElementById('paramInput').value='{{ opt }}'; this.form.submit();"
+                            style="padding: 0.35rem 0.55rem; font-size: 0.75rem;">
+                        {{ opt }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div>
+            <button type="submit" class="btn-admin btn-admin-primary" style="padding: 0.55rem 1.25rem; font-size: 0.9rem;">
+                {% if is_outdated %}
+                    <i class="fa-solid fa-arrows-rotate"></i> Calculate Again
+                {% elif cached %}
+                    <i class="fa-solid fa-rotate-right"></i> Recalculate Now
+                {% else %}
+                    <i class="fa-solid fa-calculator"></i> Calculate {{ meta.title }}
+                {% endif %}
+            </button>
+        </div>
+    </form>
+
+    <!-- Cache Metadata Banner -->
+    {% if cached %}
+    <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--admin-border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; font-size: 0.82rem; color: #94a3b8;">
+        <div>
+            <i class="fa-solid fa-clock-rotate-left"></i> Last calculated: <strong style="color: #cbd5e1;">{{ cached.calculated_at }}</strong>
+        </div>
+        <div>
+            <i class="fa-solid fa-trophy"></i> Matches included: <strong style="color: #cbd5e1;">{{ cached.completed_matches_count }}</strong> completed match(es)
+        </div>
+        {% if cached.params %}
+        <div>
+            <i class="fa-solid fa-filter"></i> Parameters applied: <code>{{ cached.params }}</code>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Leaderboard Table Card -->
+{% if cached and cached.result %}
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h2 class="admin-card-title">
+            <i class="fa-solid fa-list-ol" style="color: var(--admin-gold);"></i> Leaderboard Rankings ({{ cached.result|length }} players)
+        </h2>
+    </div>
+
+    <div class="table-responsive-admin">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    {% for col in meta.columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in cached.result %}
+                <tr>
+                    <td>
+                        {% if r.rank == 1 %}
+                            <span style="color: #fbbf24; font-weight: 800; font-size: 1rem;"><i class="fa-solid fa-crown"></i> 1</span>
+                        {% elif r.rank == 2 %}
+                            <span style="color: #cbd5e1; font-weight: 800; font-size: 1rem;">2</span>
+                        {% elif r.rank == 3 %}
+                            <span style="color: #cd7f32; font-weight: 800; font-size: 1rem;">3</span>
+                        {% else %}
+                            <span style="font-weight: 700; color: #64748b;">{{ r.rank }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                            <img src="{{ r.avatar_url }}" style="width: 28px; height: 28px; border-radius: 50%; background: #1e293b;" onerror="this.src='/static/images/default_player.png'">
+                            <span style="font-weight: 700; color: #f8fafc;">{{ r.player_name }}</span>
+                        </div>
+                    </td>
+
+                    {% if stat_key == 'most_runs' %}
+                        <td><strong style="color: #10b981; font-size: 1.05rem;">{{ r.runs }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.innings }}</td>
+                        <td>{{ r.balls }}</td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                        <td><span style="color: #fbbf24; font-weight: 600;">{{ r.strike_rate }}</span></td>
+                    {% elif stat_key == 'most_wickets' %}
+                        <td><strong style="color: #6366f1; font-size: 1.05rem;">{{ r.wickets }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.overs }}</td>
+                        <td>{{ r.runs_conceded }}</td>
+                        <td><span style="color: #ec4899; font-weight: 600;">{{ r.economy }}</span></td>
+                        <td><span style="color: #fbbf24; font-weight: 700;">{{ r.bbi }}</span></td>
+                    {% elif stat_key == 'best_strike_rate' %}
+                        <td><strong style="color: #fbbf24; font-size: 1.05rem;">{{ r.strike_rate }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.balls }}</td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                    {% elif stat_key == 'best_average' %}
+                        <td><strong style="color: #38bdf8; font-size: 1.05rem;">{{ r.average }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.innings }}</td>
+                        <td>{{ r.not_outs }}</td>
+                        <td>{{ r.matches }}</td>
+                    {% elif stat_key == 'best_economy' %}
+                        <td><strong style="color: #ec4899; font-size: 1.05rem;">{{ r.economy }}</strong></td>
+                        <td>{{ r.overs }}</td>
+                        <td>{{ r.runs_conceded }}</td>
+                        <td>{{ r.wickets }}</td>
+                    {% elif stat_key == 'most_catches' %}
+                        <td><strong style="color: #14b8a6; font-size: 1.05rem;">{{ r.catches }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.stumpings }}</td>
+                        <td>{{ r.run_outs }}</td>
+                        <td><span style="color: #fbbf24; font-weight: 600;">{{ r.total_dismissals }}</span></td>
+                    {% elif stat_key == 'most_runouts' %}
+                        <td><strong style="color: #f97316; font-size: 1.05rem;">{{ r.run_outs }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                    {% elif stat_key == 'most_boundaries' %}
+                        <td><strong style="color: #a855f7; font-size: 1.05rem;">{{ r.total_boundaries }}</strong></td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                        <td>{{ r.runs }}</td>
+                    {% elif stat_key == 'most_sixes' %}
+                        <td><strong style="color: #f43f5e; font-size: 1.05rem;">{{ r.sixes }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.innings }}</td>
+                    {% elif stat_key == 'most_fours' %}
+                        <td><strong style="color: #0ea5e9; font-size: 1.05rem;">{{ r.fours }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.innings }}</td>
+                    {% elif stat_key == 'best_spell' %}
+                        <td><strong style="color: #8b5cf6; font-weight: 800; font-size: 1.05rem;">{{ r.figures }}</strong></td>
+                        <td>{{ r.overs }}</td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.wickets }}</td>
+                        <td>{{ r.economy }}</td>
+                        <td><a href="{{ url_for('admin.match_detail', match_id=r.match_id) }}" style="color: var(--admin-primary); text-decoration: none;">Match #{{ r.match_id }}</a></td>
+                        <td>{{ r.match_date }}</td>
+                        <td>{{ r.opponent }}</td>
+                    {% elif stat_key == 'best_innings' %}
+                        <td><strong style="color: #eab308; font-size: 1.05rem;">{{ r.runs }}{% if r.status == 'not out' %}*{% endif %}</strong></td>
+                        <td>{{ r.balls }}</td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                        <td>{{ r.strike_rate }}</td>
+                        <td><span style="font-size: 0.75rem; text-transform: uppercase; color: {{ '#10b981' if r.status == 'not out' else '#ef4444' }};">{{ r.status }}</span></td>
+                        <td><a href="{{ url_for('admin.match_detail', match_id=r.match_id) }}" style="color: var(--admin-primary); text-decoration: none;">Match #{{ r.match_id }}</a></td>
+                        <td>{{ r.match_date }}</td>
+                        <td>{{ r.opponent }}</td>
+                    {% endif %}
+
+                    <td style="text-align: right;">
+                        <a href="{{ url_for('player_profile', player_id=r.player_id) }}" class="btn-admin btn-admin-outline btn-admin-sm" target="_blank" title="View Profile">
+                            <i class="fa-solid fa-user"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif cached and not cached.result %}
+<div class="admin-card" style="text-align: center; padding: 2.5rem 1rem; color: #64748b;">
+    <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5;"></i>
+    <h3 style="color: #cbd5e1; font-size: 1.1rem; margin-bottom: 0.35rem;">No qualifying records found</h3>
+    <p style="font-size: 0.85rem; max-width: 400px; margin: 0 auto;">
+        No players met the criteria in the currently completed matches. Try lowering the threshold or complete more matches.
+    </p>
+</div>
+{% else %}
+<div class="admin-card" style="text-align: center; padding: 3rem 1rem; color: #64748b;">
+    <i class="fa-solid fa-calculator" style="font-size: 2.5rem; margin-bottom: 0.75rem; color: var(--admin-primary); opacity: 0.7;"></i>
+    <h3 style="color: #cbd5e1; font-size: 1.1rem; margin-bottom: 0.35rem;">Calculation Required</h3>
+    <p style="font-size: 0.85rem; max-width: 420px; margin: 0 auto 1.25rem;">
+        This statistic has not been calculated yet. Click the button above to run the on-demand database calculation.
+    </p>
+    <form action="{{ url_for('admin.statistic_calculate', stat_key=stat_key) }}" method="POST">
+        {% if meta.has_params %}
+        <input type="hidden" name="{{ meta.param_name }}" value="{{ params.get(meta.param_name, meta.default_params.get(meta.param_name)) }}">
+        {% endif %}
+        <button type="submit" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-calculator"></i> Calculate {{ meta.title }}
+        </button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

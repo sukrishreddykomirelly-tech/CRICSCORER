@@ -1,0 +1,282 @@
+<!-- templates/admin/statistics.html -->
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Advanced Statistics - CricScorer Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
+            <i class="fa-solid fa-chart-column" style="color: var(--admin-gold); margin-right: 0.5rem;"></i> Advanced Statistics
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.88rem;">
+            On-demand career leaderboards calculated strictly when requested. 
+            <span style="color: #10b981; font-weight: 600;"><i class="fa-solid fa-shield-check"></i> Zero impact on live ball scoring.</span>
+        </p>
+    </div>
+
+    <!-- Quick Filter Category Tabs -->
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button onclick="filterCategory('all')" class="btn-admin btn-admin-outline cat-filter active" id="btn-all">All (12)</button>
+        <button onclick="filterCategory('Batting')" class="btn-admin btn-admin-outline cat-filter" id="btn-Batting"><i class="fa-solid fa-baseball-bat-ball"></i> Batting</button>
+        <button onclick="filterCategory('Bowling')" class="btn-admin btn-admin-outline cat-filter" id="btn-Bowling"><i class="fa-solid fa-bowling-ball"></i> Bowling</button>
+        <button onclick="filterCategory('Fielding')" class="btn-admin btn-admin-outline cat-filter" id="btn-Fielding"><i class="fa-solid fa-hands"></i> Fielding</button>
+    </div>
+</div>
+
+<!-- Info Notice -->
+<div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 0.9rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.88rem; color: #cbd5e1;">
+        <i class="fa-solid fa-circle-info" style="color: #10b981; font-size: 1.2rem;"></i>
+        <div>
+            <strong>Completed Matches Only:</strong> Leaderboards aggregate data only from completed matches (currently <strong>{{ overview[0].current_completed_count if overview else 0 }}</strong> completed matches recorded).
+        </div>
+    </div>
+    <span style="font-size: 0.75rem; color: #94a3b8; background: rgba(0,0,0,0.3); padding: 0.3rem 0.6rem; border-radius: 6px;">
+        <i class="fa-solid fa-bolt"></i> On-Demand Calculation
+    </span>
+</div>
+
+<!-- Statistics Cards Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;" id="statsGrid">
+    {% for stat in overview %}
+    <div class="admin-card stat-card" data-category="{{ stat.category }}" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; border-top: 3px solid {{ stat.color }};">
+        <div>
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.05); color: {{ stat.color }}; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; border: 1px solid rgba(255,255,255,0.08);">
+                        <i class="{{ stat.icon }}"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0;">{{ stat.title }}</h3>
+                        <span style="font-size: 0.7rem; text-transform: uppercase; font-weight: 600; color: #94a3b8;">{{ stat.category }}</span>
+                    </div>
+                </div>
+
+                <!-- Freshness Badge -->
+                {% if stat.status == 'fresh' %}
+                    <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase;">
+                        <i class="fa-solid fa-check"></i> Fresh
+                    </span>
+                {% elif stat.status == 'outdated' %}
+                    <span style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase;" title="New completed matches available">
+                        <i class="fa-solid fa-arrows-rotate"></i> Outdated
+                    </span>
+                {% else %}
+                    <span style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase;">
+                        <i class="fa-solid fa-clock"></i> Never
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <p style="color: #94a3b8; font-size: 0.82rem; line-height: 1.4; margin-bottom: 1rem; min-height: 2.4rem;">
+                {{ stat.description }}
+            </p>
+
+            <!-- Metadata details -->
+            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 1rem; font-size: 0.78rem; color: #cbd5e1;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span style="color: #64748b;">Last calculated:</span>
+                    <strong>{{ stat.last_calculated }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Matches included:</span>
+                    <span><strong>{{ stat.matches_included }}</strong> / {{ stat.current_completed_count }} completed</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calculation Form & Actions -->
+        <form action="{{ url_for('admin.statistic_calculate', stat_key=stat.key) }}" method="POST" style="margin-top: auto;">
+            {% if stat.has_params %}
+            <div style="margin-bottom: 0.75rem;">
+                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">
+                    {{ stat.param_label }}:
+                </label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <select name="{{ stat.param_name }}" class="admin-form-input" style="padding: 0.35rem 0.6rem; font-size: 0.82rem;">
+                        {% for opt in stat.preset_options %}
+                        <option value="{{ opt }}" {% if stat.last_params.get(stat.param_name) == opt %}selected{% endif %}>
+                            {{ opt }} {{ 'overs' if 'overs' in stat.param_name else ('balls' if 'balls' in stat.param_name else 'matches') }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% endif %}
+
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn-admin btn-admin-primary" style="flex: 1; justify-content: center; padding: 0.5rem;">
+                    {% if stat.status == 'outdated' %}
+                        <i class="fa-solid fa-arrows-rotate"></i> Calculate Again
+                    {% elif stat.status == 'fresh' %}
+                        <i class="fa-solid fa-rotate-right"></i> Recalculate
+                    {% else %}
+                        <i class="fa-solid fa-calculator"></i> Calculate
+                    {% endif %}
+                </button>
+                <a href="{{ url_for('admin.statistic_detail', stat_key=stat.key) }}" class="btn-admin btn-admin-outline" style="padding: 0.5rem 0.75rem;" title="View Full Leaderboard">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Inline Quick Preview if Statistic was Selected -->
+{% if selected_stat and selected_cached %}
+<div class="admin-card" id="previewSection" style="border: 1px solid var(--admin-primary); margin-top: 1.5rem;">
+    <div class="admin-card-header">
+        <h2 class="admin-card-title">
+            <i class="{{ selected_stat.icon }}" style="color: {{ selected_stat.color }};"></i>
+            {{ selected_stat.title }} — Calculated Leaderboard Preview
+        </h2>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{{ url_for('admin.statistic_export', stat_key=selected_key) }}" class="btn-admin btn-admin-outline btn-admin-sm">
+                <i class="fa-solid fa-file-csv"></i> Export CSV
+            </a>
+            <a href="{{ url_for('admin.statistic_detail', stat_key=selected_key) }}" class="btn-admin btn-admin-indigo btn-admin-sm">
+                Full View &rarr;
+            </a>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 0.75rem; font-size: 0.8rem; color: #94a3b8;">
+        Calculated on <strong>{{ selected_cached.calculated_at }}</strong> across <strong>{{ selected_cached.completed_matches_count }}</strong> completed matches.
+        {% if selected_cached.params %}
+            &bull; Parameters: <code>{{ selected_cached.params }}</code>
+        {% endif %}
+    </div>
+
+    <div class="table-responsive-admin">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    {% for col in selected_stat.columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in selected_cached.result[:10] %}
+                <tr>
+                    <td>
+                        {% if r.rank == 1 %}
+                            <span style="color: #fbbf24; font-weight: 800;"><i class="fa-solid fa-crown"></i> 1</span>
+                        {% elif r.rank == 2 %}
+                            <span style="color: #cbd5e1; font-weight: 800;">2</span>
+                        {% elif r.rank == 3 %}
+                            <span style="color: #cd7f32; font-weight: 800;">3</span>
+                        {% else %}
+                            {{ r.rank }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <img src="{{ r.avatar_url }}" style="width: 26px; height: 26px; border-radius: 50%; background: #1e293b;" onerror="this.src='/static/images/default_player.png'">
+                            <span style="font-weight: 600; color: #f8fafc;">{{ r.player_name }}</span>
+                        </div>
+                    </td>
+                    {% if selected_key == 'most_runs' %}
+                        <td><strong style="color: #10b981; font-size: 1rem;">{{ r.runs }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.innings }}</td>
+                        <td>{{ r.balls }}</td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                        <td>{{ r.strike_rate }}</td>
+                    {% elif selected_key == 'most_wickets' %}
+                        <td><strong style="color: #6366f1; font-size: 1rem;">{{ r.wickets }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.overs }}</td>
+                        <td>{{ r.runs_conceded }}</td>
+                        <td>{{ r.economy }}</td>
+                        <td><span style="color: #fbbf24; font-weight: 700;">{{ r.bbi }}</span></td>
+                    {% elif selected_key == 'best_strike_rate' %}
+                        <td><strong style="color: #fbbf24; font-size: 1rem;">{{ r.strike_rate }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.balls }}</td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                    {% elif selected_key == 'best_average' %}
+                        <td><strong style="color: #38bdf8; font-size: 1rem;">{{ r.average }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.innings }}</td>
+                        <td>{{ r.not_outs }}</td>
+                        <td>{{ r.matches }}</td>
+                    {% elif selected_key == 'best_economy' %}
+                        <td><strong style="color: #ec4899; font-size: 1rem;">{{ r.economy }}</strong></td>
+                        <td>{{ r.overs }}</td>
+                        <td>{{ r.runs_conceded }}</td>
+                        <td>{{ r.wickets }}</td>
+                    {% elif selected_key == 'most_catches' %}
+                        <td><strong style="color: #14b8a6; font-size: 1rem;">{{ r.catches }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.stumpings }}</td>
+                        <td>{{ r.run_outs }}</td>
+                        <td>{{ r.total_dismissals }}</td>
+                    {% elif selected_key == 'most_runouts' %}
+                        <td><strong style="color: #f97316; font-size: 1rem;">{{ r.run_outs }}</strong></td>
+                        <td>{{ r.matches }}</td>
+                    {% elif selected_key == 'most_boundaries' %}
+                        <td><strong style="color: #a855f7; font-size: 1rem;">{{ r.total_boundaries }}</strong></td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                        <td>{{ r.runs }}</td>
+                    {% elif selected_key == 'most_sixes' %}
+                        <td><strong style="color: #f43f5e; font-size: 1rem;">{{ r.sixes }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.innings }}</td>
+                    {% elif selected_key == 'most_fours' %}
+                        <td><strong style="color: #0ea5e9; font-size: 1rem;">{{ r.fours }}</strong></td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.matches }}</td>
+                        <td>{{ r.innings }}</td>
+                    {% elif selected_key == 'best_spell' %}
+                        <td><strong style="color: #8b5cf6; font-weight: 700;">{{ r.figures }}</strong></td>
+                        <td>{{ r.overs }}</td>
+                        <td>{{ r.runs }}</td>
+                        <td>{{ r.wickets }}</td>
+                        <td>{{ r.economy }}</td>
+                        <td>Match #{{ r.match_id }}</td>
+                        <td>{{ r.match_date }}</td>
+                        <td>{{ r.opponent }}</td>
+                    {% elif selected_key == 'best_innings' %}
+                        <td><strong style="color: #eab308; font-size: 1rem;">{{ r.runs }}{% if r.status == 'not out' %}*{% endif %}</strong></td>
+                        <td>{{ r.balls }}</td>
+                        <td>{{ r.fours }}</td>
+                        <td>{{ r.sixes }}</td>
+                        <td>{{ r.strike_rate }}</td>
+                        <td><span style="font-size: 0.75rem; text-transform: uppercase;">{{ r.status }}</span></td>
+                        <td>Match #{{ r.match_id }}</td>
+                        <td>{{ r.match_date }}</td>
+                        <td>{{ r.opponent }}</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function filterCategory(cat) {
+    document.querySelectorAll('.cat-filter').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('btn-' + cat).classList.add('active');
+
+    const cards = document.querySelectorAll('.stat-card');
+    cards.forEach(card => {
+        if (cat === 'all' || card.getAttribute('data-category') === cat) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

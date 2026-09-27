@@ -240,13 +240,16 @@ def dashboard():
                        t1.logo_url AS team1_logo, t2.logo_url AS team2_logo,
                        i1.id AS i1_id, i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
                        i2.id AS i2_id, i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls,
+                       t_inn1.name AS i1_batting_team_name, t_inn2.name AS i2_batting_team_name,
                        i_curr.current_striker_id, i_curr.current_non_striker_id, i_curr.current_bowler_id,
                        p1.name AS striker_name, p2.name AS non_striker_name, pb.name AS bowler_name
                 FROM matches m
                 JOIN teams t1 ON m.team1_id = t1.id
                 JOIN teams t2 ON m.team2_id = t2.id
                 LEFT JOIN innings i1 ON m.id = i1.match_id AND i1.innings_number = 1
+                LEFT JOIN teams t_inn1 ON i1.batting_team_id = t_inn1.id
                 LEFT JOIN innings i2 ON m.id = i2.match_id AND i2.innings_number = 2
+                LEFT JOIN teams t_inn2 ON i2.batting_team_id = t_inn2.id
                 LEFT JOIN innings i_curr ON m.current_innings_id = i_curr.id
                 LEFT JOIN players p1 ON i_curr.current_striker_id = p1.id
                 LEFT JOIN players p2 ON i_curr.current_non_striker_id = p2.id
@@ -939,6 +942,7 @@ def matches_list():
                tour.name AS tournament_name,
                i1.total_runs AS i1_runs, i1.total_wickets AS i1_wkts, i1.balls_bowled AS i1_balls,
                i2.total_runs AS i2_runs, i2.total_wickets AS i2_wkts, i2.balls_bowled AS i2_balls,
+               t_inn1.name AS i1_batting_team_name, t_inn2.name AS i2_batting_team_name,
                (SELECT COUNT(*) FROM deliveries d JOIN innings inn ON d.innings_id = inn.id WHERE inn.match_id = m.id) AS delivery_count
         FROM matches m
         JOIN teams t1 ON m.team1_id = t1.id
@@ -946,7 +950,9 @@ def matches_list():
         LEFT JOIN teams tw ON m.winner_id = tw.id
         LEFT JOIN tournaments tour ON m.tournament_id = tour.id
         LEFT JOIN innings i1 ON m.id = i1.match_id AND i1.innings_number = 1
+        LEFT JOIN teams t_inn1 ON i1.batting_team_id = t_inn1.id
         LEFT JOIN innings i2 ON m.id = i2.match_id AND i2.innings_number = 2
+        LEFT JOIN teams t_inn2 ON i2.batting_team_id = t_inn2.id
         {where_clause}
         ORDER BY m.id DESC
         LIMIT ? OFFSET ?
@@ -1848,3 +1854,193 @@ def search():
 
     results = database.search_all(q)
     return render_template('admin/search.html', query=q, results=results)
+
+
+# --- ADVANCED ON-DEMAND STATISTICS ---
+
+@admin_bp.route('/statistics')
+@admin_required
+def statistics_dashboard():
+    ensure_admin_db_ready()
+    import statistics as stats_service
+    overview = stats_service.get_all_statistics_overview()
+    
+    # Check if a specific statistic is selected for quick preview
+    selected_key = request.args.get('stat', '').strip()
+    selected_stat = None
+    selected_cached = None
+    
+    if selected_key and selected_key in stats_service.STATISTICS_REGISTRY:
+        selected_stat = stats_service.STATISTICS_REGISTRY[selected_key]
+        selected_cached = stats_service.get_cached_statistic(selected_key)
+        
+    return render_template(
+        'admin/statistics.html',
+        overview=overview,
+        selected_stat=selected_stat,
+        selected_cached=selected_cached,
+        selected_key=selected_key
+    )
+
+
+@admin_bp.route('/statistics/<stat_key>')
+@admin_required
+def statistic_detail(stat_key):
+    ensure_admin_db_ready()
+    import statistics as stats_service
+    
+    if stat_key not in stats_service.STATISTICS_REGISTRY:
+        flash(f"Statistic '{stat_key}' not found.", "danger")
+        return redirect(url_for('admin.statistics_dashboard'))
+        
+    meta = stats_service.STATISTICS_REGISTRY[stat_key]
+    
+    params = {}
+    if meta.get("has_params"):
+        p_name = meta["param_name"]
+        if p_name in request.args:
+            val = request.args.get(p_name)
+            try:
+                params[p_name] = int(val) if meta["param_type"] == "int" else float(val)
+            except ValueError:
+                params[p_name] = meta["default_params"].get(p_name)
+        else:
+            params = dict(meta.get("default_params", {}))
+            
+    cached_entry = stats_service.get_cached_statistic(stat_key, params)
+    current_completed_count = stats_service.get_completed_matches_count()
+    
+    is_outdated = False
+    if cached_entry:
+        is_outdated = (cached_entry["completed_matches_count"] < current_completed_count)
+        
+    return render_template(
+        'admin/statistic_detail.html',
+        meta=meta,
+        stat_key=stat_key,
+        params=params,
+        cached=cached_entry,
+        is_outdated=is_outdated,
+        current_completed_count=current_completed_count
+    )
+
+
+@admin_bp.route('/statistics/calculate/<stat_key>', methods=['POST'])
+@admin_required
+def statistic_calculate(stat_key):
+    ensure_admin_db_ready()
+    import statistics as stats_service
+    
+    if stat_key not in stats_service.STATISTICS_REGISTRY:
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"success": False, "error": f"Unknown statistic '{stat_key}'"}), 404
+        flash(f"Statistic '{stat_key}' not found.", "danger")
+        return redirect(url_for('admin.statistics_dashboard'))
+        
+    meta = stats_service.STATISTICS_REGISTRY[stat_key]
+    params = {}
+    
+    if meta.get("has_params"):
+        p_name = meta["param_name"]
+        req_val = request.form.get(p_name) or (request.get_json() or {}).get(p_name) or request.args.get(p_name)
+        if req_val is not None:
+            try:
+                params[p_name] = int(req_val) if meta["param_type"] == "int" else float(req_val)
+            except ValueError:
+                params[p_name] = meta["default_params"].get(p_name)
+        else:
+            params = dict(meta.get("default_params", {}))
+            
+    try:
+        data = stats_service.calculate_statistic_by_key(stat_key, params)
+        log_admin_action("calculate_statistic", "statistics", None, f"Calculated '{meta['title']}' with params {params}")
+        
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"success": True, "data": data})
+            
+        flash(f"Successfully calculated {meta['title']} across {data['completed_matches_count']} completed matches!", "success")
+        return redirect(url_for('admin.statistic_detail', stat_key=stat_key, **params))
+    except Exception as e:
+        print(f"Error calculating statistic '{stat_key}': {e}")
+        if request.headers.get('Accept') == 'application/json' or request.is_json:
+            return jsonify({"success": False, "error": str(e)}), 500
+        flash(f"Error calculating statistic: {e}", "danger")
+        return redirect(url_for('admin.statistic_detail', stat_key=stat_key))
+
+
+@admin_bp.route('/statistics/export/<stat_key>')
+@admin_required
+def statistic_export(stat_key):
+    ensure_admin_db_ready()
+    import statistics as stats_service
+    import csv
+    import io
+    
+    if stat_key not in stats_service.STATISTICS_REGISTRY:
+        flash("Statistic not found.", "danger")
+        return redirect(url_for('admin.statistics_dashboard'))
+        
+    meta = stats_service.STATISTICS_REGISTRY[stat_key]
+    params = {}
+    if meta.get("has_params"):
+        p_name = meta["param_name"]
+        if p_name in request.args:
+            try:
+                params[p_name] = int(request.args[p_name]) if meta["param_type"] == "int" else float(request.args[p_name])
+            except ValueError:
+                params[p_name] = meta["default_params"].get(p_name)
+                
+    cached_entry = stats_service.get_cached_statistic(stat_key, params)
+    if not cached_entry:
+        cached_entry = stats_service.calculate_statistic_by_key(stat_key, params)
+        
+    results = cached_entry.get("result", [])
+    columns = meta.get("columns", [])
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    writer.writerow([f"CricScorer Advanced Statistics - {meta['title']}"])
+    writer.writerow([f"Calculated: {cached_entry.get('calculated_at', 'Unknown')}"])
+    writer.writerow([f"Completed Matches Included: {cached_entry.get('completed_matches_count', 0)}"])
+    if params:
+        writer.writerow([f"Parameters: {json.dumps(params)}"])
+    writer.writerow([])
+    writer.writerow(columns)
+    
+    for r in results:
+        row_vals = []
+        if stat_key == "most_runs":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("runs"), r.get("matches"), r.get("innings"), r.get("balls"), r.get("fours"), r.get("sixes"), r.get("strike_rate")]
+        elif stat_key == "most_wickets":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("wickets"), r.get("matches"), r.get("overs"), r.get("runs_conceded"), r.get("economy"), r.get("bbi")]
+        elif stat_key == "best_strike_rate":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("strike_rate"), r.get("runs"), r.get("balls"), r.get("fours"), r.get("sixes")]
+        elif stat_key == "best_average":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("average"), r.get("runs"), r.get("innings"), r.get("not_outs"), r.get("matches")]
+        elif stat_key == "best_economy":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("economy"), r.get("overs"), r.get("runs_conceded"), r.get("wickets")]
+        elif stat_key == "most_catches":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("catches"), r.get("matches"), r.get("stumpings"), r.get("run_outs"), r.get("total_dismissals")]
+        elif stat_key == "most_runouts":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("run_outs"), r.get("matches")]
+        elif stat_key == "most_boundaries":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("total_boundaries"), r.get("fours"), r.get("sixes"), r.get("runs")]
+        elif stat_key == "most_sixes":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("sixes"), r.get("runs"), r.get("matches"), r.get("innings")]
+        elif stat_key == "most_fours":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("fours"), r.get("runs"), r.get("matches"), r.get("innings")]
+        elif stat_key == "best_spell":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("figures"), r.get("overs"), r.get("runs"), r.get("wickets"), r.get("economy"), f"Match #{r.get('match_id')}", r.get("match_date"), r.get("opponent")]
+        elif stat_key == "best_innings":
+            row_vals = [r.get("rank"), r.get("player_name"), r.get("runs"), r.get("balls"), r.get("fours"), r.get("sixes"), r.get("strike_rate"), r.get("status"), f"Match #{r.get('match_id')}", r.get("match_date"), r.get("opponent")]
+        writer.writerow(row_vals)
+        
+    filename = f"{stat_key}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    output.seek(0)
+    
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )
