@@ -5,7 +5,7 @@ from app import app
 import database
 from database import get_db_connection
 from admin import ensure_admin_table_seeded
-import statistics as stats_service
+import cricket_statistics as stats_service
 
 
 class TestAdvancedStatistics(unittest.TestCase):

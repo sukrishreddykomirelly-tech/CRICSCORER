@@ -1081,3 +1081,14 @@ def calculate_statistic_by_key(stat_key: str, params: Optional[dict] = None, con
     finally:
         if close:
             conn.close()
+
+
+def calculate_statistic(stat_key: str, params: Optional[dict] = None, conn=None, **kwargs) -> Dict[str, Any]:
+    """
+    Alias for calculate_statistic_by_key for backward compatibility and AI dynamic retrieval.
+    Accepts keyword arguments and maps them into params.
+    """
+    p = dict(params or {})
+    p.update(kwargs)
+    return calculate_statistic_by_key(stat_key, params=p, conn=conn)
+

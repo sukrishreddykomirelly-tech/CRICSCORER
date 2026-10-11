@@ -3,7 +3,25 @@ import os
 import json
 import queue
 import mimetypes
+import datetime
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, g
+
+# Auto-load .env file if present
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.isfile(_env_path):
+    try:
+        with open(_env_path, "r", encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    _k = _k.strip()
+                    _v = _v.strip().strip("'\"")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception as _e:
+        print(f"Notice loading .env file: {_e}")
+
 import database
 from database import get_db_connection, save_delivery, delete_last_delivery, rebuild_and_cache_match_state
 from admin import admin_bp
@@ -14,6 +32,9 @@ mimetypes.add_type('application/javascript', '.js')
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'cricscorer-super-secret-key-2026')
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.register_blueprint(admin_bp)
 
 # Initialize database schema and default admin account on startup (WSGI & CLI safe)

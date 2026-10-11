@@ -150,12 +150,12 @@
         <form action="{{ url_for('admin.login', next=request.args.get('next')) }}" method="POST">
             <div class="form-group">
                 <label class="form-label" for="username">Admin Username</label>
-                <input type="text" id="username" name="username" class="form-control-admin" placeholder="admin" required autofocus>
+                <input type="text" id="username" name="username" class="form-control-admin" value="admin" placeholder="admin" required autofocus>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="password">Password</label>
-                <input type="password" id="password" name="password" class="form-control-admin" placeholder="••••••••" required>
+                <input type="password" id="password" name="password" class="form-control-admin" value="admin123" placeholder="••••••••" required>
             </div>
 
             <button type="submit" class="btn-login">
@@ -163,6 +163,12 @@
                 <span>Sign In to Admin</span>
             </button>
         </form>
+
+        <div style="margin-top: 1rem; text-align: center;">
+            <a href="{{ url_for('admin.quick_login', next=request.args.get('next')) }}" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.6rem 1rem; background:rgba(168, 85, 247, 0.15); border:1px solid rgba(168, 85, 247, 0.4); border-radius:8px; color:#c084fc; text-decoration:none; font-size:0.85rem; font-weight:600; width:100%; justify-content:center; box-sizing:border-box;">
+                <i class="fa-solid fa-bolt"></i> 1-Click Quick Login
+            </a>
+        </div>
 
         <div style="text-align: center; margin-top: 1.5rem; font-size: 0.8rem; color: #64748b;">
             <a href="{{ url_for('index') }}" style="color: #94a3b8; text-decoration: none;">

@@ -1,0 +1,994 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}AI Cricket Assistant - CricScorer Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ai-chat-container {
+        display: flex;
+        height: calc(100vh - var(--admin-header-height) - 4.5rem);
+        background: rgba(13, 19, 33, 0.6);
+        border: 1px solid var(--admin-border);
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* Conversations Sidebar */
+    .ai-conv-sidebar {
+        width: 260px;
+        background: rgba(10, 15, 26, 0.85);
+        border-right: 1px solid var(--admin-border);
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.25s ease, width 0.25s ease;
+    }
+
+    .ai-conv-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--admin-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .ai-conv-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .ai-conv-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.65rem 0.75rem;
+        border-radius: 8px;
+        color: #94a3b8;
+        font-size: 0.84rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    .ai-conv-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fafc;
+    }
+
+    .ai-conv-item.active {
+        background: rgba(168, 85, 247, 0.15);
+        border-color: rgba(168, 85, 247, 0.35);
+        color: #c084fc;
+        font-weight: 600;
+    }
+
+    .ai-conv-title {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ai-conv-delete {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        color: #ef4444;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+    }
+
+    .ai-conv-item:hover .ai-conv-delete {
+        opacity: 0.8;
+    }
+    .ai-conv-delete:hover {
+        opacity: 1 !important;
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+    /* Main Chat Viewport */
+    .ai-chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: rgba(13, 19, 33, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ai-chat-header {
+        padding: 0.85rem 1.25rem;
+        border-bottom: 1px solid var(--admin-border);
+        background: rgba(15, 23, 42, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        backdrop-filter: blur(8px);
+    }
+
+    .ai-chat-header-title {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #f8fafc;
+    }
+
+    .ai-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.72rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+
+    .ai-status-online {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .ai-status-warning {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .ai-pulse-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #34d399;
+        box-shadow: 0 0 8px #34d399;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* Message Stream */
+    .ai-messages-viewport {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        scroll-behavior: smooth;
+    }
+
+    .ai-message {
+        display: flex;
+        gap: 0.85rem;
+        max-width: 88%;
+        animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ai-message.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .ai-message.assistant {
+        align-self: flex-start;
+    }
+
+    .ai-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 0.95rem;
+    }
+
+    .ai-avatar.user-avatar {
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        color: white;
+    }
+
+    .ai-avatar.bot-avatar {
+        background: linear-gradient(135deg, #a855f7, #6366f1);
+        color: white;
+        box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+    }
+
+    .ai-bubble {
+        padding: 0.85rem 1.15rem;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        color: #e2e8f0;
+        position: relative;
+    }
+
+    .ai-message.user .ai-bubble {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.3), rgba(99, 102, 241, 0.25));
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        color: #f8fafc;
+        border-bottom-right-radius: 2px;
+    }
+
+    .ai-message.assistant .ai-bubble {
+        background: rgba(17, 24, 39, 0.85);
+        border: 1px solid var(--admin-border);
+        border-bottom-left-radius: 2px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Markdown & Tables Inside AI Bubble */
+    .ai-bubble p { margin-bottom: 0.65rem; }
+    .ai-bubble p:last-child { margin-bottom: 0; }
+    .ai-bubble ul, .ai-bubble ol { margin-left: 1.25rem; margin-bottom: 0.65rem; }
+    .ai-bubble li { margin-bottom: 0.25rem; }
+
+    .ai-bubble table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.75rem 0;
+        font-size: 0.82rem;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+    }
+
+    .ai-bubble th {
+        background: rgba(30, 41, 59, 0.9);
+        padding: 0.5rem 0.75rem;
+        color: #94a3b8;
+        font-weight: 600;
+        text-align: left;
+        border-bottom: 1px solid var(--admin-border);
+    }
+
+    .ai-bubble td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: #cbd5e1;
+    }
+
+    .ai-bubble tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .ai-bubble pre {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.65rem 0.85rem;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: monospace;
+        font-size: 0.8rem;
+        margin: 0.65rem 0;
+    }
+
+    .ai-bubble code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.15rem 0.35rem;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.84rem;
+        color: #f472b6;
+    }
+
+    .ai-bubble pre code {
+        background: transparent;
+        padding: 0;
+        color: #e2e8f0;
+    }
+
+    /* Live Data & Source Badges */
+    .ai-source-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        margin-right: 0.35rem;
+    }
+
+    .chip-live {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .chip-completed {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .chip-tool {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* Starter Prompts Container */
+    .ai-starter-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        margin: auto;
+        max-width: 680px;
+    }
+
+    .ai-starter-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(99, 102, 241, 0.25));
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: #c084fc;
+        margin-bottom: 1rem;
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+    }
+
+    .ai-starter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem;
+        width: 100%;
+        margin-top: 1.5rem;
+    }
+
+    .ai-starter-card {
+        background: rgba(17, 24, 39, 0.7);
+        border: 1px solid var(--admin-border);
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        font-size: 0.84rem;
+        color: #cbd5e1;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .ai-starter-card:hover {
+        background: rgba(168, 85, 247, 0.12);
+        border-color: rgba(168, 85, 247, 0.4);
+        color: #f8fafc;
+        transform: translateY(-2px);
+    }
+
+    /* Thinking / Tool Pill */
+    .ai-thinking-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        padding: 0.4rem 0.85rem;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        color: #c084fc;
+        align-self: flex-start;
+        animation: fadeIn 0.2s ease;
+    }
+
+    .ai-thinking-dots span {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #c084fc;
+        animation: blink 1.4s infinite both;
+        margin: 0 1px;
+    }
+    .ai-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+        0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+        40% { opacity: 1; transform: scale(1.1); }
+    }
+
+    /* Bottom Input Bar */
+    .ai-chat-input-bar {
+        padding: 0.85rem 1.25rem;
+        border-top: 1px solid var(--admin-border);
+        background: rgba(10, 15, 26, 0.9);
+        display: flex;
+        gap: 0.65rem;
+        align-items: flex-end;
+    }
+
+    .ai-chat-input-wrap {
+        flex: 1;
+        position: relative;
+        background: rgba(17, 24, 39, 0.8);
+        border: 1px solid var(--admin-border);
+        border-radius: 10px;
+        padding: 0.5rem 0.85rem;
+        transition: border-color 0.2s ease;
+    }
+
+    .ai-chat-input-wrap:focus-within {
+        border-color: rgba(168, 85, 247, 0.6);
+        box-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
+    }
+
+    .ai-chat-textarea {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: #f8fafc;
+        font-size: 0.9rem;
+        resize: none;
+        max-height: 120px;
+        min-height: 24px;
+        line-height: 1.4;
+        font-family: inherit;
+    }
+
+    .ai-send-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #a855f7, #6366f1);
+        border: none;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .ai-send-btn:hover:not(:disabled) {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    }
+
+    .ai-send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    @media (max-width: 768px) {
+        .ai-conv-sidebar {
+            position: absolute;
+            top: 0; bottom: 0; left: 0;
+            z-index: 50;
+            transform: translateX(-100%);
+        }
+        .ai-conv-sidebar.open {
+            transform: translateX(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-card" style="padding:0; overflow:hidden; margin-bottom:0;">
+    <div class="ai-chat-container">
+        
+        <!-- Conversation History Sidebar -->
+        <div class="ai-conv-sidebar" id="convSidebar">
+            <div class="ai-conv-header">
+                <span style="font-weight:700; font-size:0.85rem; color:#cbd5e1;"><i class="fa-solid fa-clock-rotate-left"></i> History (48h)</span>
+                <button class="btn-admin btn-admin-primary" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="startNewChat()">
+                    <i class="fa-solid fa-plus"></i> New
+                </button>
+            </div>
+            <div class="ai-conv-list" id="convList">
+                {% if conversations %}
+                    {% for c in conversations %}
+                        <div class="ai-conv-item" id="conv-item-{{ c.id }}" onclick="loadConversation('{{ c.id }}')">
+                            <span class="ai-conv-title"><i class="fa-regular fa-message" style="margin-right: 6px;"></i>{{ c.title }}</span>
+                            <i class="fa-solid fa-trash-can ai-conv-delete" onclick="event.stopPropagation(); deleteConversation('{{ c.id }}');" title="Delete chat"></i>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="muted" style="font-size:0.78rem; text-align:center; padding:1.5rem 0.5rem;">
+                        No active conversations in the last 48 hours.
+                    </div>
+                {% endif %}
+            </div>
+            <div style="padding: 0.75rem; border-top: 1px solid var(--admin-border);">
+                <button class="btn-admin btn-admin-outline" style="width:100%; font-size:0.78rem; justify-content:center; color:#f87171;" onclick="clearAllConversations()">
+                    <i class="fa-solid fa-broom"></i> Clear All History
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="ai-chat-main">
+            <!-- Header -->
+            <div class="ai-chat-header">
+                <div class="ai-chat-header-title">
+                    <button class="btn-admin btn-admin-outline" id="toggleConvBtn" style="padding:0.35rem 0.6rem; font-size:0.8rem; display:none;" onclick="toggleConvSidebar()">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <i class="fa-solid fa-wand-magic-sparkles" style="color: #a855f7;"></i>
+                    <span>AI Cricket Assistant</span>
+                    <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.7rem;">{{ model_name }}</span>
+                </div>
+                <div>
+                    {% if is_configured %}
+                        <span class="ai-status-badge ai-status-online">
+                            <span class="ai-pulse-dot"></span> Groq Engine Online
+                        </span>
+                    {% else %}
+                        <span class="ai-status-badge ai-status-warning" title="Set GROQ_API_KEY environment variable">
+                            <i class="fa-solid fa-circle-exclamation"></i> API Key Missing
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Messages Stream Viewport -->
+            <div class="ai-messages-viewport" id="messagesViewport">
+                
+                <!-- Starter Screen (shown when conversation is empty) -->
+                <div class="ai-starter-container" id="starterContainer">
+                    <div class="ai-starter-icon">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <h3 style="font-size: 1.35rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.4rem;">
+                        CricScorer Intelligence Engine
+                    </h3>
+                    <p class="muted" style="font-size: 0.88rem; max-width: 500px;">
+                        Ask natural language questions about players, matches, tactical collapses, head-to-head records, and tournament statistics.
+                    </p>
+
+                    <div class="ai-starter-grid">
+                        <div class="ai-starter-card" onclick="sendPrompt('Who are the top 10 run scorers across all completed matches?')">
+                            <i class="fa-solid fa-crown text-gold" style="margin-top:2px;"></i>
+                            <span>Who are the top 10 run scorers?</span>
+                        </div>
+                        <div class="ai-starter-card" onclick="sendPrompt('Compare the career batting and bowling statistics of top 2 batsmen.')">
+                            <i class="fa-solid fa-scale-balanced" style="color:#6366f1; margin-top:2px;"></i>
+                            <span>Compare two players.</span>
+                        </div>
+                        <div class="ai-starter-card" onclick="sendPrompt('Summarize the latest completed match and highlight key performers and awards.')">
+                            <i class="fa-solid fa-file-lines text-emerald" style="margin-top:2px;"></i>
+                            <span>Summarize the latest match.</span>
+                        </div>
+                        <div class="ai-starter-card" onclick="sendPrompt('Investigate why the losing team lost in the latest completed match.')">
+                            <i class="fa-solid fa-magnifying-glass-chart" style="color:#f43f5e; margin-top:2px;"></i>
+                            <span>Why did a team lose its last match?</span>
+                        </div>
+                        <div class="ai-starter-card" onclick="sendPrompt('Investigate batting collapses and phase run rates across recent matches.')">
+                            <i class="fa-solid fa-bolt" style="color:#fbbf24; margin-top:2px;"></i>
+                            <span>Investigate a batting collapse.</span>
+                        </div>
+                        <div class="ai-starter-card" onclick="sendPrompt('Check database health and give me a count of total matches, players, and teams.')">
+                            <i class="fa-solid fa-heart-pulse" style="color:#06b6d4; margin-top:2px;"></i>
+                            <span>Check database health.</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Input Box -->
+            <div class="ai-chat-input-bar">
+                <div class="ai-chat-input-wrap">
+                    <textarea
+                        id="chatInput"
+                        class="ai-chat-textarea"
+                        placeholder="Ask anything about cricket stats, matches, or players... (Enter to send, Shift+Enter for newline)"
+                        rows="1"
+                        oninput="autoResize(this)"
+                        onkeydown="handleKey(event)"
+                    ></textarea>
+                </div>
+                <button id="sendBtn" class="ai-send-btn" onclick="sendMessage()" title="Send message">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Fast Markdown Parser + Robust Chat Client Script -->
+<script>
+    let currentConversationId = localStorage.getItem('cricscorer_ai_conv_id') || null;
+    let isWaitingResponse = false;
+
+    // Check mobile view for sidebar toggle
+    function checkViewport() {
+        const toggleBtn = document.getElementById('toggleConvBtn');
+        if (toggleBtn) {
+            if (window.innerWidth <= 768) {
+                toggleBtn.style.display = 'inline-flex';
+            } else {
+                toggleBtn.style.display = 'none';
+            }
+        }
+    }
+    window.addEventListener('resize', checkViewport);
+    checkViewport();
+
+    function toggleConvSidebar() {
+        document.getElementById('convSidebar').classList.toggle('open');
+    }
+
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    function handleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    // Markdown Formatter helper
+    function renderMarkdown(text) {
+        if (!text) return '';
+        let escaped = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // Code blocks
+        escaped = escaped.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        // Inline code
+        escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // Bold
+        escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        // Italic
+        escaped = escaped.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+        // Tables
+        const lines = escaped.split('\n');
+        let inTable = false;
+        let tableHtml = '';
+        let resultLines = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('|') && line.endsWith('|')) {
+                const cells = line.split('|').slice(1, -1);
+                // Check if it's separator row
+                if (cells.every(c => c.trim().match(/^:?-+:?$/))) {
+                    continue;
+                }
+                if (!inTable) {
+                    inTable = true;
+                    tableHtml = '<div class="table-responsive-admin"><table><thead><tr>';
+                    cells.forEach(c => tableHtml += `<th>${c.trim()}</th>`);
+                    tableHtml += '</tr></thead><tbody>';
+                } else {
+                    tableHtml += '<tr>';
+                    cells.forEach(c => tableHtml += `<td>${c.trim()}</td>`);
+                    tableHtml += '</tr>';
+                }
+            } else {
+                if (inTable) {
+                    tableHtml += '</tbody></table></div>';
+                    resultLines.push(tableHtml);
+                    inTable = false;
+                    tableHtml = '';
+                }
+                if (line.length > 0) {
+                    if (line.startsWith('- ')) {
+                        resultLines.push(`<li>${line.substring(2)}</li>`);
+                    } else if (line.startsWith('# ')) {
+                        resultLines.push(`<h3 style="font-size:1.15rem; font-weight:700; margin:0.5rem 0 0.25rem; color:#f8fafc;">${line.substring(2)}</h3>`);
+                    } else if (line.startsWith('## ')) {
+                        resultLines.push(`<h4 style="font-size:1.05rem; font-weight:700; margin:0.4rem 0 0.2rem; color:#cbd5e1;">${line.substring(3)}</h4>`);
+                    } else if (line.startsWith('### ')) {
+                        resultLines.push(`<h5 style="font-size:0.95rem; font-weight:600; margin:0.3rem 0 0.15rem; color:#94a3b8;">${line.substring(4)}</h5>`);
+                    } else {
+                        resultLines.push(`<p>${line}</p>`);
+                    }
+                }
+            }
+        }
+        if (inTable) {
+            tableHtml += '</tbody></table></div>';
+            resultLines.push(tableHtml);
+        }
+
+        return resultLines.join('');
+    }
+
+    function appendMessage(role, text, metadata = null) {
+        const viewport = document.getElementById('messagesViewport');
+        const starter = document.getElementById('starterContainer');
+        if (starter) starter.style.display = 'none';
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `ai-message ${role}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = `ai-avatar ${role === 'user' ? 'user-avatar' : 'bot-avatar'}`;
+        avatar.innerHTML = role === 'user' ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-wand-magic-sparkles"></i>';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'ai-bubble';
+        bubble.innerHTML = renderMarkdown(text);
+
+        // Append metadata chips if available
+        if (metadata) {
+            const chipContainer = document.createElement('div');
+            chipContainer.style.marginTop = '0.5rem';
+
+            if (metadata.has_live_data) {
+                chipContainer.innerHTML += '<span class="ai-source-chip chip-live"><i class="fa-solid fa-tower-broadcast"></i> Live Snapshot</span>';
+            }
+            if (metadata.tools_called && metadata.tools_called.length > 0) {
+                const toolNames = [...new Set(metadata.tools_called)].join(', ');
+                chipContainer.innerHTML += `<span class="ai-source-chip chip-tool"><i class="fa-solid fa-database"></i> Verified Data (${toolNames})</span>`;
+            }
+            if (chipContainer.children.length > 0) {
+                bubble.appendChild(chipContainer);
+            }
+        }
+
+        msgDiv.appendChild(avatar);
+        msgDiv.appendChild(bubble);
+        viewport.appendChild(msgDiv);
+        viewport.scrollTop = viewport.scrollHeight;
+    }
+
+    function showThinkingIndicator(toolMessage = 'Analyzing cricket data...') {
+        removeThinkingIndicator();
+        const viewport = document.getElementById('messagesViewport');
+        const ind = document.createElement('div');
+        ind.id = 'thinkingIndicator';
+        ind.className = 'ai-thinking-indicator';
+        ind.innerHTML = `
+            <i class="fa-solid fa-atom fa-spin"></i>
+            <span>${toolMessage}</span>
+            <div class="ai-thinking-dots">
+                <span></span><span></span><span></span>
+            </div>
+        `;
+        viewport.appendChild(ind);
+        viewport.scrollTop = viewport.scrollHeight;
+    }
+
+    function removeThinkingIndicator() {
+        const ind = document.getElementById('thinkingIndicator');
+        if (ind) ind.remove();
+    }
+
+    function sendPrompt(promptText) {
+        document.getElementById('chatInput').value = promptText;
+        sendMessage();
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text || isWaitingResponse) return;
+
+        isWaitingResponse = true;
+        input.value = '';
+        input.style.height = 'auto';
+        document.getElementById('sendBtn').disabled = true;
+
+        appendMessage('user', text);
+        showThinkingIndicator('Processing query with Groq...');
+
+        try {
+            const resp = await fetch('{{ url_for("admin.api_ai_chat") }}', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: text,
+                    conversation_id: currentConversationId
+                })
+            });
+
+            if (resp.status === 401) {
+                removeThinkingIndicator();
+                appendMessage('assistant', '⚠️ **Session Expired**: Your admin login session has expired. **[⚡ Click here for 1-Click Login](/admin/quick-login?next=/admin/ai-chat)** to resume chatting immediately.');
+                return;
+            }
+
+            const contentType = resp.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                removeThinkingIndicator();
+                const retryPrompt = text.replace(/'/g, "\\'").replace(/\n/g, ' ');
+                appendMessage('assistant', `❌ **Server Error**: Unexpected response format (Status ${resp.status}).\n\n<button class="btn-admin btn-admin-outline" style="margin-top:0.4rem; padding:0.35rem 0.75rem; font-size:0.8rem; color:#c084fc; border-color:rgba(168,85,247,0.4);" onclick="sendPrompt('${retryPrompt}')"><i class="fa-solid fa-rotate-right"></i> Retry Question</button>`);
+                return;
+            }
+
+            const data = await resp.json();
+            removeThinkingIndicator();
+
+            if (data.success) {
+                currentConversationId = data.conversation_id;
+                localStorage.setItem('cricscorer_ai_conv_id', currentConversationId);
+                appendMessage('assistant', data.response, {
+                    has_live_data: data.has_live_data,
+                    tools_called: data.tools_called
+                });
+                refreshConversationsList();
+            } else {
+                const retryPrompt = text.replace(/'/g, "\\'").replace(/\n/g, ' ');
+                appendMessage('assistant', `❌ **Error**: ${data.error || 'Failed to process response.'}\n\n<button class="btn-admin btn-admin-outline" style="margin-top:0.4rem; padding:0.35rem 0.75rem; font-size:0.8rem; color:#c084fc; border-color:rgba(168,85,247,0.4);" onclick="sendPrompt('${retryPrompt}')"><i class="fa-solid fa-rotate-right"></i> Retry Question</button>`);
+            }
+        } catch (err) {
+            removeThinkingIndicator();
+            const retryPrompt = text.replace(/'/g, "\\'").replace(/\n/g, ' ');
+            appendMessage('assistant', `❌ **Network error**: Could not contact AI server (${err.message}).\n\n<button class="btn-admin btn-admin-outline" style="margin-top:0.4rem; padding:0.35rem 0.75rem; font-size:0.8rem; color:#c084fc; border-color:rgba(168,85,247,0.4);" onclick="sendPrompt('${retryPrompt}')"><i class="fa-solid fa-rotate-right"></i> Retry Question</button>`);
+        } finally {
+            isWaitingResponse = false;
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
+        }
+    }
+
+    async function loadConversation(convId) {
+        currentConversationId = convId;
+        localStorage.setItem('cricscorer_ai_conv_id', convId);
+
+        // Highlight active item
+        document.querySelectorAll('.ai-conv-item').forEach(el => el.classList.remove('active'));
+        const item = document.getElementById(`conv-item-${convId}`);
+        if (item) item.classList.add('active');
+
+        const viewport = document.getElementById('messagesViewport');
+        viewport.innerHTML = '';
+        showThinkingIndicator('Loading conversation history...');
+
+        try {
+            const resp = await fetch(`/admin/api/ai/history/${convId}`, {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (resp.status === 401 || resp.redirected) {
+                removeThinkingIndicator();
+                appendMessage('assistant', '⚠️ **Session Expired**: **[⚡ Click here for 1-Click Login](/admin/quick-login?next=/admin/ai-chat)** to continue.');
+                return;
+            }
+
+            const contentType = resp.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                removeThinkingIndicator();
+                startNewChat();
+                return;
+            }
+
+            const data = await resp.json();
+            removeThinkingIndicator();
+
+            if (data.success && data.messages.length > 0) {
+                data.messages.forEach(m => {
+                    appendMessage(m.role, m.content, m.metadata);
+                });
+            } else {
+                startNewChat();
+            }
+        } catch (err) {
+            removeThinkingIndicator();
+            appendMessage('assistant', `⚠️ Could not load conversation history: ${err.message}`);
+        }
+    }
+
+    function startNewChat() {
+        currentConversationId = null;
+        localStorage.removeItem('cricscorer_ai_conv_id');
+        document.querySelectorAll('.ai-conv-item').forEach(el => el.classList.remove('active'));
+        
+        const viewport = document.getElementById('messagesViewport');
+        viewport.innerHTML = '';
+        
+        // Re-insert starter screen
+        const starter = document.getElementById('starterContainer');
+        if (starter) {
+            starter.style.display = 'flex';
+            viewport.appendChild(starter);
+        } else {
+            location.reload();
+        }
+    }
+
+    async function deleteConversation(convId) {
+        if (!confirm('Delete this conversation?')) return;
+        try {
+            await fetch(`/admin/api/ai/history/${convId}`, { 
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+            if (currentConversationId === convId) {
+                startNewChat();
+            }
+            refreshConversationsList();
+        } catch (e) {
+            console.error('Failed to delete conversation.', e);
+        }
+    }
+
+    async function clearAllConversations() {
+        if (!confirm('Clear all AI chat conversations from the last 48 hours? Cricket data will not be touched.')) return;
+        try {
+            await fetch('/admin/api/ai/clear', { 
+                method: 'POST',
+                credentials: 'same-origin'
+            });
+            startNewChat();
+            refreshConversationsList();
+        } catch (e) {
+            console.error('Failed to clear conversations.', e);
+        }
+    }
+
+    async function refreshConversationsList() {
+        try {
+            const resp = await fetch('/admin/api/ai/conversations', {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (resp.ok) {
+                const contentType = resp.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const data = await resp.json();
+                    if (data.success) {
+                        const list = document.getElementById('convList');
+                        if (data.conversations.length === 0) {
+                            list.innerHTML = '<div class="muted" style="font-size:0.78rem; text-align:center; padding:1.5rem 0.5rem;">No active conversations in the last 48 hours.</div>';
+                            return;
+                        }
+                        list.innerHTML = data.conversations.map(c => `
+                            <div class="ai-conv-item ${c.id === currentConversationId ? 'active' : ''}" id="conv-item-${c.id}" onclick="loadConversation('${c.id}')">
+                                <span class="ai-conv-title"><i class="fa-regular fa-message" style="margin-right: 6px;"></i>${c.title}</span>
+                                <i class="fa-solid fa-trash-can ai-conv-delete" onclick="event.stopPropagation(); deleteConversation('${c.id}');" title="Delete chat"></i>
+                            </div>
+                        `).join('');
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to refresh conversation list', e);
+        }
+    }
+
+    // Auto-resume existing conversation on load if exists
+    window.addEventListener('DOMContentLoaded', () => {
+        if (currentConversationId) {
+            loadConversation(currentConversationId);
+        }
+    });
+</script>
+{% endblock %}

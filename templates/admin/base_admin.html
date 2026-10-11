@@ -515,6 +515,10 @@
                 </a>
 
                 <div class="admin-nav-category">Intelligence &amp; Awards</div>
+                <a href="{{ url_for('admin.ai_chat_view') }}" class="admin-nav-link {% if 'ai_chat' in request.endpoint %}active{% endif %}">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="color: #a855f7;"></i>
+                    <span>AI Cricket Assistant</span>
+                </a>
                 <a href="{{ url_for('admin.awards_list') }}" class="admin-nav-link {% if 'awards' in request.endpoint %}active{% endif %}">
                     <i class="fa-solid fa-medal"></i>
                     <span>Awards &amp; Overrides</span>
