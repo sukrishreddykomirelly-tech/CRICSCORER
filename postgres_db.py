@@ -6,6 +6,7 @@ temporary local database.
 """
 
 import os
+import re
 from typing import Any, Iterable, Optional
 
 import psycopg
@@ -113,16 +114,36 @@ class CompatCursor:
             self._cursor.execute(converted, params)
 
         self.lastrowid = None
-        if converted.lstrip().upper().startswith("INSERT"):
-            try:
-                with self._connection.cursor(row_factory=tuple_row) as id_cursor:
-                    id_cursor.execute("SELECT lastval()")
+        insert_target = re.match(
+            r'\s*INSERT\s+INTO\s+((?:"[^"]+"|[A-Za-z_]\w*)'
+            r'(?:\s*\.\s*(?:"[^"]+"|[A-Za-z_]\w*))?)'
+            r'\s*(?:\(([^)]*)\))?',
+            converted,
+            re.IGNORECASE,
+        )
+        explicit_id = bool(
+            insert_target
+            and insert_target.group(2)
+            and any(
+                column.strip().strip('"').lower() == "id"
+                for column in insert_target.group(2).split(",")
+            )
+        )
+        if insert_target and not explicit_id:
+            table_name = insert_target.group(1)
+            with self._connection.cursor(row_factory=tuple_row) as id_cursor:
+                id_cursor.execute(
+                    "SELECT pg_get_serial_sequence(%s, 'id')",
+                    (table_name,),
+                )
+                sequence = id_cursor.fetchone()[0]
+                if sequence:
+                    id_cursor.execute(
+                        "SELECT currval(%s::regclass)",
+                        (sequence,),
+                    )
                     row = id_cursor.fetchone()
                     self.lastrowid = row[0] if row else None
-            except psycopg.Error:
-                # Junction tables do not have an identity column.  Existing
-                # callers only use lastrowid for tables that do.
-                self.lastrowid = None
 
         return self
 
