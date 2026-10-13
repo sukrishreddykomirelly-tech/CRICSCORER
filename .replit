@@ -36,3 +36,8 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+GROQ_API_KEY = "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"
