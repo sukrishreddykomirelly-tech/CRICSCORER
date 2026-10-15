@@ -133,8 +133,12 @@ class CompatCursor:
             table_name = insert_target.group(1)
             with self._connection.cursor(row_factory=tuple_row) as id_cursor:
                 id_cursor.execute(
-                    "SELECT pg_get_serial_sequence(%s, 'id')",
-                    (table_name,),
+                    "SELECT CASE WHEN EXISTS ("
+                    "SELECT 1 FROM pg_attribute "
+                    "WHERE attrelid = to_regclass(%s) "
+                    "AND attname = 'id' AND attnum > 0 AND NOT attisdropped"
+                    ") THEN pg_get_serial_sequence(%s, 'id') ELSE NULL END",
+                    (table_name, table_name),
                 )
                 sequence = id_cursor.fetchone()[0]
                 if sequence:

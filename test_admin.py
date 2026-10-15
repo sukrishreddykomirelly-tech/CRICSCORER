@@ -111,15 +111,27 @@ class TestAdminPanel(unittest.TestCase):
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM teams WHERE name = 'Stallions CC'")
         team_id = cursor.fetchone()['id']
+        cursor.execute("SELECT id FROM players ORDER BY id LIMIT 1")
+        player_id = cursor.fetchone()['id']
         conn.close()
 
         # 3. Edit team & squad
         res = self.client.post(f'/admin/teams/{team_id}/edit', data={
             'name': 'Stallions CC Updated',
-            'logo_url': ''
+            'logo_url': '',
+            'player_ids': str(player_id)
         }, follow_redirects=True)
         self.assertEqual(res.status_code, 200)
         self.assertIn(b"Stallions CC Updated", res.data)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM team_players WHERE team_id = ? AND player_id = ?",
+            (team_id, player_id)
+        )
+        self.assertIsNotNone(cursor.fetchone())
+        conn.close()
 
         # 4. Delete team
         res = self.client.post(f'/admin/teams/{team_id}/delete', follow_redirects=True)
