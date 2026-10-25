@@ -16,8 +16,51 @@ def test_service_account_is_required_without_revealing_credentials(monkeypatch):
 
 def test_service_account_json_must_be_valid(monkeypatch):
     monkeypatch.setenv(SERVICE_ACCOUNT_ENV, "not-json")
-    with pytest.raises(RuntimeError, match="valid service-account JSON"):
+    with pytest.raises(RuntimeError, match="valid, standard service-account JSON"):
         _load_service_account()
+
+
+def test_service_account_json_rejects_non_standard_constants(monkeypatch):
+    monkeypatch.setenv(SERVICE_ACCOUNT_ENV, '{"project_id": NaN}')
+    with pytest.raises(RuntimeError, match="valid, standard service-account JSON"):
+        _load_service_account()
+
+
+def test_service_account_json_rejects_duplicate_keys(monkeypatch):
+    monkeypatch.setenv(SERVICE_ACCOUNT_ENV, '{"project_id":"first","project_id":"second"}')
+    with pytest.raises(RuntimeError, match="valid, standard service-account JSON"):
+        _load_service_account()
+
+
+def test_service_account_requires_complete_google_credentials(monkeypatch):
+    monkeypatch.setenv(SERVICE_ACCOUNT_ENV, '{"project_id":"demo-project"}')
+    with pytest.raises(RuntimeError, match="missing required non-empty fields"):
+        _load_service_account()
+
+
+def test_service_account_requires_google_service_account_type(monkeypatch):
+    monkeypatch.setenv(SERVICE_ACCOUNT_ENV, (
+        '{"type":"web","project_id":"demo","private_key":"key",'
+        '"client_email":"demo@example.com","token_uri":"https://example.com/token"}'
+    ))
+    with pytest.raises(RuntimeError, match='type must be "service_account"'):
+        _load_service_account()
+
+
+def test_valid_service_account_json_is_loaded(monkeypatch):
+    raw = (
+        '{"type":"service_account","project_id":"demo-project",'
+        '"private_key":"test-private-key","client_email":"firebase@example.com",'
+        '"token_uri":"https://oauth2.googleapis.com/token"}'
+    )
+    monkeypatch.setenv(SERVICE_ACCOUNT_ENV, raw)
+    assert _load_service_account() == {
+        "type": "service_account",
+        "project_id": "demo-project",
+        "private_key": "test-private-key",
+        "client_email": "firebase@example.com",
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
 
 
 def test_document_id_uses_existing_id_as_string():

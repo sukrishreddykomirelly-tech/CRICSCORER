@@ -28,18 +28,49 @@ def _load_service_account() -> Dict[str, Any]:
             "JSON to Replit Secrets before connecting to Firestore."
         )
 
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"Invalid JSON constant: {value}")
+
+    def reject_duplicate_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"Duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
     try:
-        service_account = json.loads(raw_credentials)
-    except json.JSONDecodeError as exc:
+        service_account = json.loads(
+            raw_credentials,
+            parse_constant=reject_constant,
+            object_pairs_hook=reject_duplicate_keys,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
         raise RuntimeError(
-            f"{SERVICE_ACCOUNT_ENV} must contain valid service-account JSON."
+            f"{SERVICE_ACCOUNT_ENV} must contain valid, standard service-account JSON."
         ) from exc
 
-    if not isinstance(service_account, dict) or not service_account.get("project_id"):
+    required_fields = ("type", "project_id", "private_key", "client_email", "token_uri")
+    if not isinstance(service_account, dict):
         raise RuntimeError(
-            f"{SERVICE_ACCOUNT_ENV} must be a Firebase service-account JSON object "
-            "with a project_id."
+            f"{SERVICE_ACCOUNT_ENV} must contain a JSON object, not an array or scalar."
         )
+    missing_fields = [
+        field for field in required_fields
+        if not isinstance(service_account.get(field), str)
+        or not service_account[field].strip()
+    ]
+    if missing_fields:
+        raise RuntimeError(
+            f"{SERVICE_ACCOUNT_ENV} is missing required non-empty fields: "
+            f"{', '.join(missing_fields)}."
+        )
+    if service_account["type"] != "service_account":
+        raise RuntimeError(
+            f"{SERVICE_ACCOUNT_ENV} must be a Google service-account JSON file "
+            '(type must be "service_account").'
+        )
+
     return service_account
 
 
