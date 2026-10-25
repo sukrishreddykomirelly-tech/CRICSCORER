@@ -31,7 +31,10 @@ mimetypes.add_type('text/css', '.css')
 mimetypes.add_type('application/javascript', '.js')
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'cricscorer-super-secret-key-2026')
+_session_secret = os.environ.get('SECRET_KEY') or os.environ.get('SESSION_SECRET')
+app.secret_key = _session_secret or 'cricscorer-super-secret-key-2026'
+app.config['SESSION_SECRET_CONFIGURED'] = bool(_session_secret)
+app.config['MAX_CONTENT_LENGTH'] = 21 * 1024 * 1024
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True

@@ -1,6 +1,8 @@
 # test_admin.py
 import unittest
 import json
+from io import BytesIO
+from unittest.mock import patch
 from app import app
 import database
 from database import get_db_connection
@@ -324,6 +326,44 @@ class TestAdminPanel(unittest.TestCase):
         self.assertEqual(data['application'], 'CricScorer')
         self.assertIn('players', data)
         self.assertIn('matches', data)
+        self.assertIn('ai_chat_messages', data)
+        self.assertIn('admin_users', data)
+
+    def test_firestore_backup_import_requires_login_and_explicit_merge(self):
+        anonymous_client = app.test_client()
+        response = anonymous_client.get('/admin/backups', follow_redirects=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/admin/login', response.headers['Location'])
+
+        self._login()
+        self.client.get('/admin/backups')
+        with self.client.session_transaction() as sess:
+            csrf_token = sess['admin_backup_csrf_token']
+
+        with patch('admin.import_backup_to_firestore', return_value={'players': 1}) as importer, \
+             patch('admin.get_firestore_client', return_value=object()):
+            missing_confirmation = self.client.post(
+                '/admin/backups/import',
+                data={
+                    'csrf_token': csrf_token,
+                    'backup_file': (BytesIO(b'{"players":[]}'), 'backup.json'),
+                },
+                content_type='multipart/form-data',
+            )
+            self.assertEqual(missing_confirmation.status_code, 302)
+            importer.assert_not_called()
+
+            imported = self.client.post(
+                '/admin/backups/import',
+                data={
+                    'csrf_token': csrf_token,
+                    'confirm_merge': 'yes',
+                    'backup_file': (BytesIO(b'{"players":[]}'), 'backup.json'),
+                },
+                content_type='multipart/form-data',
+            )
+            self.assertEqual(imported.status_code, 302)
+            importer.assert_called_once()
 
     def test_audit_logs_and_search(self):
         self._login()

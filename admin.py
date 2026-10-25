@@ -2,6 +2,8 @@
 import json
 import os
 import datetime
+import hmac
+import secrets
 from functools import wraps
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
@@ -13,6 +15,9 @@ from database import get_db_connection, rebuild_and_cache_match_state
 import awards
 import rankings
 import ai_chat_routes
+from firestore_backup import MAX_BACKUP_BYTES, import_backup_to_firestore
+from firestore_db import get_firestore_client
+from migrate_postgres_to_firestore import TABLES
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -80,6 +85,30 @@ def admin_required(f):
     return decorated_function
 
 
+def admin_session_required(f):
+    """Require a real login and a configured session-signing secret."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_app.config.get("TESTING") and not current_app.config.get("SESSION_SECRET_CONFIGURED"):
+            return (
+                "Admin backup tools are disabled until SECRET_KEY is set in Replit Secrets.",
+                503,
+            )
+        if not session.get("admin_authenticated"):
+            flash("Please log in to access admin backup tools.", "warning")
+            return redirect(url_for("admin.login", next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def _get_backup_csrf_token():
+    token = session.get("admin_backup_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["admin_backup_csrf_token"] = token
+    return token
+
+
 def log_admin_action(action, target_type=None, target_id=None, details=None, result="success"):
     """Record administrative actions in the audit log."""
     username = session.get('admin_user', 'system')
@@ -111,8 +140,13 @@ def trigger_live_update(match_id):
 def login():
     ensure_admin_db_ready()
 
-    if session.get('admin_logged_in'):
+    if session.get('admin_authenticated'):
         return redirect(url_for('admin.dashboard'))
+    # Older production behavior could mark a visitor as logged in without
+    # checking credentials. Do not let that legacy session bypass login here.
+    session.pop('admin_logged_in', None)
+    session.pop('admin_user', None)
+    session.pop('admin_id', None)
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -128,6 +162,7 @@ def login():
             if user and check_password_hash(user['password_hash'], password):
                 session.permanent = True
                 session['admin_logged_in'] = True
+                session['admin_authenticated'] = True
                 session['admin_user'] = user['username']
                 session['admin_id'] = user['id']
                 log_admin_action("admin_login", "admin_users", user['id'], f"Logged in from {request.remote_addr}")
@@ -171,8 +206,10 @@ def quick_login():
 def logout():
     log_admin_action("admin_logout", "admin_users", session.get('admin_id'), "Logged out")
     session.pop('admin_logged_in', None)
+    session.pop('admin_authenticated', None)
     session.pop('admin_user', None)
     session.pop('admin_id', None)
+    session.pop('admin_backup_csrf_token', None)
     flash("You have been logged out safely.", "info")
     return redirect(url_for('admin.login'))
 
@@ -1761,7 +1798,7 @@ def data_health_heal():
 # --- BACKUPS & JSON EXPORT ---
 
 @admin_bp.route('/backups')
-@admin_required
+@admin_session_required
 def backups():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1775,11 +1812,16 @@ def backups():
             stats[tbl] = 0
 
     conn.close()
-    return render_template('admin/backups.html', stats=stats)
+    return render_template(
+        'admin/backups.html',
+        stats=stats,
+        backup_csrf_token=_get_backup_csrf_token(),
+        max_backup_mb=MAX_BACKUP_BYTES // (1024 * 1024),
+    )
 
 
 @admin_bp.route('/backups/export')
-@admin_required
+@admin_session_required
 def backup_export():
     """Dumps all key tables to a JSON payload for download."""
     conn = get_db_connection()
@@ -1791,18 +1833,9 @@ def backup_export():
         "version": "2.0"
     }
 
-    tables = [
-        'players', 'teams', 'tournaments', 'team_players', 'tournament_teams',
-        'matches', 'match_players', 'innings', 'substitutions', 'deliveries',
-        'match_awards_override'
-    ]
-
-    for tbl in tables:
-        try:
-            cursor.execute(f"SELECT * FROM {tbl}")
-            data[tbl] = [dict(row) for row in cursor.fetchall()]
-        except Exception as e:
-            data[tbl] = []
+    for tbl in TABLES:
+        cursor.execute(f'SELECT * FROM "{tbl}"')
+        data[tbl] = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
 
@@ -1814,6 +1847,63 @@ def backup_export():
         mimetype="application/json",
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
+
+
+@admin_bp.route('/backups/import', methods=['POST'])
+@admin_session_required
+def backup_import():
+    expected_token = session.get("admin_backup_csrf_token", "")
+    submitted_token = request.form.get("csrf_token", "")
+    if not expected_token or not hmac.compare_digest(expected_token, submitted_token):
+        flash("Backup import security check failed. Reload the page and try again.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    if request.form.get("confirm_merge") != "yes":
+        flash("Confirm the merge behavior before importing the backup.", "warning")
+        return redirect(url_for("admin.backups"))
+
+    backup_file = request.files.get("backup_file")
+    if not backup_file or not backup_file.filename:
+        flash("Choose a CricScorer JSON backup file first.", "warning")
+        return redirect(url_for("admin.backups"))
+    if not backup_file.filename.lower().endswith(".json"):
+        flash("Only .json backup files are accepted.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    raw_data = backup_file.stream.read(MAX_BACKUP_BYTES + 1)
+    if len(raw_data) > MAX_BACKUP_BYTES:
+        flash(f"The backup exceeds the {MAX_BACKUP_BYTES // (1024 * 1024)} MB upload limit.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    try:
+        counts = import_backup_to_firestore(raw_data, get_firestore_client())
+    except ValueError as exc:
+        flash(f"Backup was not imported: {exc}", "danger")
+        return redirect(url_for("admin.backups"))
+    except Exception as exc:
+        current_app.logger.error(
+            "Firestore JSON backup import failed (%s).", type(exc).__name__
+        )
+        flash(
+            "Firestore import failed before completion. You can safely retry the same file; "
+            "same-ID records are overwritten and no records are deleted.",
+            "danger",
+        )
+        return redirect(url_for("admin.backups"))
+
+    total = sum(counts.values())
+    log_admin_action(
+        "import_firestore_json",
+        "firestore",
+        None,
+        f"Imported {total} JSON backup records: {json.dumps(counts, sort_keys=True)}",
+    )
+    flash(
+        f"Imported {total} records into Firestore. Matching IDs were overwritten; "
+        "records missing from the backup were not deleted.",
+        "success",
+    )
+    return redirect(url_for("admin.backups"))
 
 
 # --- AUDIT LOGS ---

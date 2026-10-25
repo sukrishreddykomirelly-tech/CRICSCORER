@@ -9,7 +9,7 @@
         <h1 style="font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.25rem;">
             <i class="fa-solid fa-database" style="color: var(--admin-primary); margin-right: 0.5rem;"></i> Backups &amp; Data Export
         </h1>
-        <p style="color: #94a3b8; font-size: 0.88rem;">Export database snapshots, manage tables, and download JSON backups.</p>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Download a full CricScorer backup or merge a JSON backup into Firestore.</p>
     </div>
 
     <a href="{{ url_for('admin.backup_export') }}" class="btn-admin btn-admin-primary">
@@ -17,14 +17,46 @@
     </a>
 </div>
 
+<!-- Firestore JSON Import -->
+<div class="admin-card" style="padding: 1.25rem; margin-bottom: 1.5rem; border-color: rgba(99, 102, 241, 0.35);">
+    <h2 style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0 0 0.5rem;">
+        <i class="fa-solid fa-cloud-arrow-up" style="color: #818cf8; margin-right: 0.45rem;"></i>
+        Import JSON backup to Firestore
+    </h2>
+    <p style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5; margin-bottom: 1rem;">
+        Upload a CricScorer backup JSON file (maximum {{ max_backup_mb }} MB). The file is validated before any writes.
+        This copies data into Firestore; it does not switch the running app away from PostgreSQL.
+    </p>
+
+    <form action="{{ url_for('admin.backup_import') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ backup_csrf_token }}">
+        <div style="margin-bottom: 1rem;">
+            <label for="backup-file" style="display:block; color:#e2e8f0; font-weight:600; margin-bottom:0.4rem;">CricScorer JSON file</label>
+            <input id="backup-file" name="backup_file" type="file" accept=".json,application/json" required
+                   style="width:100%; color:#cbd5e1; padding:0.65rem; border:1px solid rgba(148,163,184,.3); border-radius:8px; background:rgba(15,23,42,.45);">
+        </div>
+        <label style="display:flex; align-items:flex-start; gap:0.55rem; color:#fbbf24; font-size:0.84rem; line-height:1.5; margin-bottom:1rem;">
+            <input type="checkbox" name="confirm_merge" value="yes" required style="margin-top:0.2rem;">
+            I understand: records with matching IDs in Firestore will be replaced. Records not in this file will not be deleted.
+        </label>
+        <button type="submit" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-file-import"></i> Import backup into Firestore
+        </button>
+    </form>
+    <p style="color:#94a3b8; font-size:0.78rem; line-height:1.5; margin:1rem 0 0;">
+        If a large import is interrupted, upload the same file again; the stable record IDs make the copy safe to retry.
+        Keep downloaded backups private because they may include administrator account hashes and AI chat history.
+    </p>
+</div>
+
 <!-- Persistence Info Card -->
 <div class="admin-card" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); padding: 1.25rem; margin-bottom: 1.5rem;">
     <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
         <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.25rem;"></i>
-        <h2 style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0;">Relational Persistence Online</h2>
+        <h2 style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0;">PostgreSQL active · Firestore ready for import</h2>
     </div>
     <p style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5;">
-        All matches, rosters, deliveries, and statistical records are committed with strict foreign keys and transactional durability. You can export a portable JSON snapshot at any time for offline archiving or disaster recovery.
+        The app still uses PostgreSQL while its remaining SQL-based features are converted and tested. Keep PostgreSQL and its connection configured until the Firestore cutover is complete.
     </p>
 </div>
 
