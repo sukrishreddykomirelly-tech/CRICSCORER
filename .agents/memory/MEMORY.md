@@ -1,1 +1,2 @@
 - [PostgreSQL migration lessons](postgresql-migration-lessons.md) — PostgreSQL enforces grouping rules that SQLite may accept permissively.
+- [CricScorer Firestore direction](firestore-migration-direction.md) — Cloud Firestore is the target; preserve PostgreSQL until conversion, credentials, and data checks are complete.

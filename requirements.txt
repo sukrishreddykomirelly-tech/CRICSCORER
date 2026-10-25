@@ -3,3 +3,5 @@ flask
 gunicorn
 pytest
 psycopg[binary]
+firebase-admin
+werkzeug
