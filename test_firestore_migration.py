@@ -4,12 +4,13 @@ from uuid import UUID
 
 import pytest
 
-from firestore_db import SERVICE_ACCOUNT_ENV, _load_service_account
+from firestore_db import SERVICE_ACCOUNT_ENV, SERVICE_ACCOUNT_FIELDS, _load_service_account
 from migrate_postgres_to_firestore import _document_id, _to_firestore_value
 
 
 def test_service_account_is_required_without_revealing_credentials(monkeypatch):
-    monkeypatch.delenv(SERVICE_ACCOUNT_ENV, raising=False)
+    for key in (SERVICE_ACCOUNT_ENV, *SERVICE_ACCOUNT_FIELDS):
+        monkeypatch.delenv(key, raising=False)
     with pytest.raises(RuntimeError, match=SERVICE_ACCOUNT_ENV):
         _load_service_account()
 
@@ -61,6 +62,26 @@ def test_valid_service_account_json_is_loaded(monkeypatch):
         "client_email": "firebase@example.com",
         "token_uri": "https://oauth2.googleapis.com/token",
     }
+
+
+def test_valid_individual_service_account_secrets_are_loaded(monkeypatch):
+    values = {
+        "type": "service_account",
+        "project_id": "demo-project",
+        "private_key": "test-private-key\\nsecond-line",
+        "client_email": "firebase@example.com",
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
+    monkeypatch.delenv(SERVICE_ACCOUNT_ENV, raising=False)
+    for field in SERVICE_ACCOUNT_FIELDS:
+        if field in values:
+            monkeypatch.setenv(field, values[field])
+        else:
+            monkeypatch.delenv(field, raising=False)
+
+    service_account = _load_service_account()
+    assert service_account["project_id"] == "demo-project"
+    assert service_account["private_key"] == "test-private-key\nsecond-line"
 
 
 def test_document_id_uses_existing_id_as_string():

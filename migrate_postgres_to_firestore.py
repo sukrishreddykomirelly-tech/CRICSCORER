@@ -3,7 +3,8 @@
 Start with a dry run:
     python migrate_postgres_to_firestore.py
 
-Apply the copy after adding FIREBASE_SERVICE_ACCOUNT_JSON to Replit Secrets:
+Apply the copy after adding Firebase service-account credentials to Replit Secrets.
+Use FIREBASE_SERVICE_ACCOUNT_JSON or the individual service-account fields:
     python migrate_postgres_to_firestore.py --apply
 
 This is a data-copy utility only; the Flask application continues to use

@@ -1,8 +1,7 @@
 """Firebase Admin SDK setup for Cloud Firestore.
 
-Credentials are read only from the FIREBASE_SERVICE_ACCOUNT_JSON environment
-variable. Keep PostgreSQL as the active application database until all SQL
-data access has been migrated and Firestore has been verified.
+Credentials may be provided as complete JSON or as individual service-account
+environment variables. Keep PostgreSQL active until app data access is migrated.
 """
 
 from __future__ import annotations
@@ -18,15 +17,30 @@ from firebase_admin import credentials, firestore
 
 FIREBASE_APP_NAME = "cricscorer"
 SERVICE_ACCOUNT_ENV = "FIREBASE_SERVICE_ACCOUNT_JSON"
+SERVICE_ACCOUNT_FIELDS = (
+    "type",
+    "project_id",
+    "private_key",
+    "private_key_id",
+    "client_email",
+    "client_id",
+    "auth_uri",
+    "token_uri",
+    "auth_provider_x509_cert_url",
+    "client_x509_cert_url",
+    "universe_domain",
+)
+REQUIRED_SERVICE_ACCOUNT_FIELDS = (
+    "type",
+    "project_id",
+    "private_key",
+    "client_email",
+    "token_uri",
+)
 
 
 def _load_service_account() -> Dict[str, Any]:
     raw_credentials = os.environ.get(SERVICE_ACCOUNT_ENV)
-    if not raw_credentials:
-        raise RuntimeError(
-            f"Missing {SERVICE_ACCOUNT_ENV}. Add the Firebase service-account "
-            "JSON to Replit Secrets before connecting to Firestore."
-        )
 
     def reject_constant(value: str) -> None:
         raise ValueError(f"Invalid JSON constant: {value}")
@@ -39,37 +53,54 @@ def _load_service_account() -> Dict[str, Any]:
             result[key] = value
         return result
 
-    try:
-        service_account = json.loads(
-            raw_credentials,
-            parse_constant=reject_constant,
-            object_pairs_hook=reject_duplicate_keys,
-        )
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise RuntimeError(
-            f"{SERVICE_ACCOUNT_ENV} must contain valid, standard service-account JSON."
-        ) from exc
+    if raw_credentials:
+        try:
+            service_account = json.loads(
+                raw_credentials,
+                parse_constant=reject_constant,
+                object_pairs_hook=reject_duplicate_keys,
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise RuntimeError(
+                f"{SERVICE_ACCOUNT_ENV} must contain valid, standard service-account JSON."
+            ) from exc
+        credential_source = SERVICE_ACCOUNT_ENV
+    else:
+        service_account = {
+            field: os.environ[field]
+            for field in SERVICE_ACCOUNT_FIELDS
+            if os.environ.get(field)
+        }
+        if not service_account:
+            raise RuntimeError(
+                f"Missing Firebase credentials. Set {SERVICE_ACCOUNT_ENV} to the "
+                "complete service-account JSON, or add its individual fields as secrets."
+            )
+        credential_source = "individual Firebase service-account secrets"
 
-    required_fields = ("type", "project_id", "private_key", "client_email", "token_uri")
     if not isinstance(service_account, dict):
         raise RuntimeError(
-            f"{SERVICE_ACCOUNT_ENV} must contain a JSON object, not an array or scalar."
+            f"{credential_source} must contain a JSON object, not an array or scalar."
         )
     missing_fields = [
-        field for field in required_fields
+        field for field in REQUIRED_SERVICE_ACCOUNT_FIELDS
         if not isinstance(service_account.get(field), str)
         or not service_account[field].strip()
     ]
     if missing_fields:
         raise RuntimeError(
-            f"{SERVICE_ACCOUNT_ENV} is missing required non-empty fields: "
+            f"{credential_source} is missing required non-empty fields: "
             f"{', '.join(missing_fields)}."
         )
     if service_account["type"] != "service_account":
         raise RuntimeError(
-            f"{SERVICE_ACCOUNT_ENV} must be a Google service-account JSON file "
+            f"{credential_source} must identify a Google service-account JSON file "
             '(type must be "service_account").'
         )
+
+    private_key = service_account["private_key"]
+    if "\\n" in private_key:
+        service_account["private_key"] = private_key.replace("\\n", "\n")
 
     return service_account
 
