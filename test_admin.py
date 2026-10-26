@@ -335,13 +335,15 @@ class TestAdminPanel(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/admin/login', response.headers['Location'])
 
-        self._login()
+        with patch('admin.log_admin_action'):
+            self._login()
         self.client.get('/admin/backups')
         with self.client.session_transaction() as sess:
             csrf_token = sess['admin_backup_csrf_token']
 
         with patch('admin.import_backup_to_firestore', return_value={'players': 1}) as importer, \
-             patch('admin.get_firestore_client', return_value=object()):
+             patch('admin.get_firestore_client', return_value=object()), \
+             patch('admin.log_admin_action'):
             missing_confirmation = self.client.post(
                 '/admin/backups/import',
                 data={
