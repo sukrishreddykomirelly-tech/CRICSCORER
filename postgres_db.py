@@ -7,6 +7,7 @@ temporary local database.
 
 import os
 import re
+import time
 from typing import Any, Iterable, Optional
 
 import psycopg
@@ -214,20 +215,43 @@ class PostgresConnection:
         return getattr(self._connection, name)
 
 
+def _get_sqlite_connection():
+    import sqlite3
+    sqlite_conn = sqlite3.connect("cricscorer.db", check_same_thread=False, timeout=30.0)
+    sqlite_conn.row_factory = sqlite3.Row
+    sqlite_conn.execute("PRAGMA foreign_keys = ON")
+    sqlite_conn.execute("PRAGMA journal_mode = WAL")
+    sqlite_conn.execute("PRAGMA busy_timeout = 30000")
+    return sqlite_conn
+
+
+_POSTGRES_DISABLED = False
+_POSTGRES_LAST_FAIL_TIME = 0.0
+
+
 def get_postgres_connection():
+    global _POSTGRES_DISABLED, _POSTGRES_LAST_FAIL_TIME
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        import sqlite3
-        sqlite_conn = sqlite3.connect("cricscorer.db", check_same_thread=False, timeout=30.0)
-        sqlite_conn.row_factory = sqlite3.Row
-        sqlite_conn.execute("PRAGMA foreign_keys = ON")
-        sqlite_conn.execute("PRAGMA journal_mode = WAL")
-        sqlite_conn.execute("PRAGMA busy_timeout = 30000")
-        return sqlite_conn
+        return _get_sqlite_connection()
 
-    return PostgresConnection(
-        psycopg.connect(database_url, row_factory=compat_row_factory)
-    )
+    now = time.time()
+    if _POSTGRES_DISABLED and (now - _POSTGRES_LAST_FAIL_TIME < 60.0):
+        return _get_sqlite_connection()
+
+    try:
+        raw_conn = psycopg.connect(
+            database_url,
+            row_factory=compat_row_factory,
+            connect_timeout=2,
+        )
+        _POSTGRES_DISABLED = False
+        return PostgresConnection(raw_conn)
+    except Exception as err:
+        _POSTGRES_DISABLED = True
+        _POSTGRES_LAST_FAIL_TIME = now
+        print(f"Notice: PostgreSQL connection failed ({err}). Falling back to local SQLite.")
+        return _get_sqlite_connection()
 
 
 POSTGRES_SCHEMA = [

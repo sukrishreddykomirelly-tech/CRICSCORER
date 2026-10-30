@@ -381,21 +381,35 @@ def get_match_json_state(match_id):
 
 @app.route('/')
 def index():
-    live_matches = database.get_live_matches()
-    recent_matches = database.get_recent_matches(5)
+    try:
+        live_matches = database.get_live_matches()
+    except Exception as e:
+        print(f"Notice getting live matches on index: {e}")
+        live_matches = []
+
+    try:
+        recent_matches = database.get_recent_matches(5)
+    except Exception as e:
+        print(f"Notice getting recent matches on index: {e}")
+        recent_matches = []
     
     # Get top active players & teams to show on home dashboard
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, name, batting_style, avatar_url FROM players ORDER BY id DESC LIMIT 5")
-    players = [dict(row) for row in cursor.fetchall()]
-    cursor.execute("SELECT id, name, logo_url FROM teams ORDER BY id DESC LIMIT 5")
-    teams = [dict(row) for row in cursor.fetchall()]
-    cursor.execute("SELECT id, name FROM tournaments ORDER BY id DESC LIMIT 5")
-    tournaments = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+    players, teams, tournaments = [], [], []
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, batting_style, avatar_url FROM players ORDER BY id DESC LIMIT 5")
+        players = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT id, name, logo_url FROM teams ORDER BY id DESC LIMIT 5")
+        teams = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT id, name FROM tournaments ORDER BY id DESC LIMIT 5")
+        tournaments = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+    except Exception as e:
+        print(f"Notice getting entities on index: {e}")
 
     # Calculate career rankings
+
     try:
         rankings = database.get_player_rankings()
     except Exception as e:

@@ -15,23 +15,31 @@ def get_db_connection():
 
 
 def init_db():
-    """Ensure the persistent PostgreSQL schema exists."""
-    conn = get_db_connection()
+    """Ensure the persistent database schema exists."""
     try:
-        ensure_postgres_schema(conn)
-    finally:
-        conn.close()
+        conn = get_db_connection()
+        try:
+            ensure_postgres_schema(conn)
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"Notice: init_db encountered: {e}")
 
 
 def seed_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Check if players table already has seed data
-    cursor.execute("SELECT COUNT(*) FROM players")
-    if cursor.fetchone()[0] > 0:
-        conn.close()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if players table already has seed data
+        cursor.execute("SELECT COUNT(*) FROM players")
+        if cursor.fetchone()[0] > 0:
+            conn.close()
+            return
+    except Exception as e:
+        print(f"Notice: seed_db check encountered: {e}")
         return
+
         
     # Add Legendary Players
     players = [
