@@ -481,6 +481,19 @@ def player_create():
         player_id = cursor.lastrowid
         conn.commit()
         conn.close()
+
+        try:
+            from firestore_sync import sync_document_to_firestore
+            sync_document_to_firestore("players", str(player_id), {
+                "id": player_id,
+                "name": name,
+                "batting_style": batting_style,
+                "bowling_style": bowling_style,
+                "is_keeper": is_keeper,
+                "avatar_url": avatar_url
+            })
+        except Exception as sync_e:
+            print(f"Notice: sync player to Firestore: {sync_e}")
         
         return redirect(url_for('player_profile', player_id=player_id))
     return render_template("player_create.html")
@@ -518,6 +531,21 @@ def team_create():
             
         conn.commit()
         conn.close()
+
+        try:
+            from firestore_sync import sync_document_to_firestore
+            sync_document_to_firestore("teams", str(team_id), {
+                "id": team_id,
+                "name": name,
+                "logo_url": logo_url
+            })
+            for p_id in selected_players:
+                sync_document_to_firestore("team_players", f"{team_id}_{p_id}", {
+                    "team_id": int(team_id),
+                    "player_id": int(p_id)
+                })
+        except Exception as sync_e:
+            print(f"Notice: sync team to Firestore: {sync_e}")
         
         return redirect(url_for('team_profile', team_id=team_id))
         
@@ -595,6 +623,24 @@ def tournaments_list():
             
         conn.commit()
         conn.close()
+
+        try:
+            from firestore_sync import sync_document_to_firestore
+            sync_document_to_firestore("tournaments", str(t_id), {
+                "id": t_id,
+                "name": name,
+                "win_points": win_pts,
+                "tie_points": tie_pts,
+                "nr_points": nr_pts
+            })
+            for team_id in selected_teams:
+                sync_document_to_firestore("tournament_teams", f"{t_id}_{team_id}", {
+                    "tournament_id": int(t_id),
+                    "team_id": int(team_id)
+                })
+        except Exception as sync_e:
+            print(f"Notice: sync tournament to Firestore: {sync_e}")
+
         return redirect(url_for('tournament_detail', tournament_id=t_id))
         
     cursor.execute("SELECT * FROM tournaments ORDER BY id DESC")

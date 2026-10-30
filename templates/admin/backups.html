@@ -49,15 +49,25 @@
     </p>
 </div>
 
-<!-- Persistence Info Card -->
+<!-- Persistence & Firestore Sync Card -->
 <div class="admin-card" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); padding: 1.25rem; margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-        <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.25rem;"></i>
-        <h2 style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0;">PostgreSQL active · Firestore ready for import</h2>
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                <i class="fa-solid fa-cloud" style="color: #10b981; font-size: 1.25rem;"></i>
+                <h2 style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0;">Cloud Firestore Connected</h2>
+            </div>
+            <p style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5; margin: 0;">
+                All live match deliveries and data are stored in Cloud Firestore. Click below to pull all Cloud Firestore records into the active local database at any time.
+            </p>
+        </div>
+        <form action="{{ url_for('admin.backup_sync_firestore') }}" method="POST" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ backup_csrf_token }}">
+            <button type="submit" class="btn-admin" style="background: #059669; color: white;">
+                <i class="fa-solid fa-arrows-rotate"></i> Pull / Restore from Firestore
+            </button>
+        </form>
     </div>
-    <p style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5;">
-        The app still uses PostgreSQL while its remaining SQL-based features are converted and tested. Keep PostgreSQL and its connection configured until the Firestore cutover is complete.
-    </p>
 </div>
 
 <!-- Table Records Breakdown -->

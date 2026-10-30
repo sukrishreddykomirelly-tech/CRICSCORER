@@ -1892,6 +1892,12 @@ def backup_import():
         return redirect(url_for("admin.backups"))
 
     total = sum(counts.values())
+    try:
+        from firestore_sync import restore_firestore_to_sqlite
+        restore_firestore_to_sqlite()
+    except Exception as sync_exc:
+        current_app.logger.warning("Local database restore after backup import: %s", sync_exc)
+
     log_admin_action(
         "import_firestore_json",
         "firestore",
@@ -1899,10 +1905,37 @@ def backup_import():
         f"Imported {total} JSON backup records: {json.dumps(counts, sort_keys=True)}",
     )
     flash(
-        f"Imported {total} records into Firestore. Matching IDs were overwritten; "
+        f"Imported {total} records into Firestore and updated local database. Matching IDs were overwritten; "
         "records missing from the backup were not deleted.",
         "success",
     )
+    return redirect(url_for("admin.backups"))
+
+
+@admin_bp.route('/backups/sync_firestore', methods=['POST'])
+@admin_session_required
+def backup_sync_firestore():
+    expected_token = session.get("admin_backup_csrf_token", "")
+    received_token = request.form.get("csrf_token", "")
+    if not expected_token or not hmac.compare_digest(expected_token, received_token):
+        flash("CSRF token verification failed. Reload and try again.", "danger")
+        return redirect(url_for("admin.backups"))
+
+    try:
+        from firestore_sync import restore_firestore_to_sqlite
+        counts = restore_firestore_to_sqlite()
+        total = sum(counts.values())
+        log_admin_action(
+            "sync_firestore_to_local",
+            "firestore",
+            None,
+            f"Restored {total} records from Cloud Firestore into local database: {json.dumps(counts, sort_keys=True)}"
+        )
+        flash(f"Successfully restored {total} records from Cloud Firestore into the local database!", "success")
+    except Exception as exc:
+        current_app.logger.error("Firestore sync failed: %s", exc)
+        flash(f"Failed to restore from Firestore: {exc}", "danger")
+
     return redirect(url_for("admin.backups"))
 
 

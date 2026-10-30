@@ -498,6 +498,165 @@ def ensure_postgres_schema(connection, commit=True):
         # Create SQLite compatible tables
         sqlite_schema = [
             """
+            CREATE TABLE IF NOT EXISTS players (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                batting_style TEXT,
+                bowling_style TEXT,
+                is_keeper INTEGER DEFAULT 0,
+                avatar_url TEXT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS teams (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                logo_url TEXT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS tournaments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                win_points INTEGER DEFAULT 2,
+                tie_points INTEGER DEFAULT 1,
+                nr_points INTEGER DEFAULT 1
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS team_players (
+                team_id INTEGER,
+                player_id INTEGER,
+                PRIMARY KEY (team_id, player_id),
+                FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+                FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS tournament_teams (
+                tournament_id INTEGER,
+                team_id INTEGER,
+                PRIMARY KEY (tournament_id, team_id),
+                FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+                FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tournament_id INTEGER,
+                team1_id INTEGER NOT NULL,
+                team2_id INTEGER NOT NULL,
+                match_format TEXT DEFAULT 'T20',
+                overs_limit INTEGER DEFAULT 20,
+                ground TEXT,
+                match_date TEXT,
+                match_time TEXT,
+                status TEXT DEFAULT 'scheduled',
+                toss_winner_id INTEGER,
+                toss_decision TEXT,
+                current_innings_id INTEGER,
+                winner_id INTEGER,
+                result_margin TEXT,
+                is_super_over INTEGER DEFAULT 0,
+                single_batting INTEGER DEFAULT 0,
+                FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE SET NULL,
+                FOREIGN KEY (team1_id) REFERENCES teams(id),
+                FOREIGN KEY (team2_id) REFERENCES teams(id),
+                FOREIGN KEY (toss_winner_id) REFERENCES teams(id),
+                FOREIGN KEY (winner_id) REFERENCES teams(id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS match_players (
+                match_id INTEGER,
+                team_id INTEGER,
+                player_id INTEGER,
+                batting_order INTEGER,
+                PRIMARY KEY (match_id, team_id, player_id),
+                FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
+                FOREIGN KEY (team_id) REFERENCES teams(id),
+                FOREIGN KEY (player_id) REFERENCES players(id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS innings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                match_id INTEGER NOT NULL,
+                innings_number INTEGER NOT NULL,
+                batting_team_id INTEGER NOT NULL,
+                bowling_team_id INTEGER NOT NULL,
+                total_runs INTEGER DEFAULT 0,
+                total_wickets INTEGER DEFAULT 0,
+                balls_bowled INTEGER DEFAULT 0,
+                wides INTEGER DEFAULT 0,
+                noballs INTEGER DEFAULT 0,
+                byes INTEGER DEFAULT 0,
+                legbyes INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'ongoing',
+                current_striker_id INTEGER,
+                current_non_striker_id INTEGER,
+                current_bowler_id INTEGER,
+                FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
+                FOREIGN KEY (batting_team_id) REFERENCES teams(id),
+                FOREIGN KEY (bowling_team_id) REFERENCES teams(id),
+                FOREIGN KEY (current_striker_id) REFERENCES players(id),
+                FOREIGN KEY (current_non_striker_id) REFERENCES players(id),
+                FOREIGN KEY (current_bowler_id) REFERENCES players(id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS substitutions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                match_id INTEGER NOT NULL,
+                innings_id INTEGER NOT NULL,
+                outgoing_id INTEGER NOT NULL,
+                incoming_id INTEGER NOT NULL,
+                FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
+                FOREIGN KEY (outgoing_id) REFERENCES players(id),
+                FOREIGN KEY (incoming_id) REFERENCES players(id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS deliveries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                innings_id INTEGER NOT NULL,
+                over_number INTEGER NOT NULL,
+                ball_of_over INTEGER NOT NULL,
+                delivery_count INTEGER NOT NULL,
+                striker_id INTEGER NOT NULL,
+                non_striker_id INTEGER NOT NULL,
+                bowler_id INTEGER NOT NULL,
+                runs_batter INTEGER DEFAULT 0,
+                runs_extras INTEGER DEFAULT 0,
+                extra_type TEXT,
+                is_legal INTEGER DEFAULT 1,
+                is_wicket INTEGER DEFAULT 0,
+                wicket_type TEXT,
+                player_dismissed_id INTEGER,
+                fielder_id INTEGER,
+                is_bowler_wicket INTEGER DEFAULT 0,
+                commentary TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                new_batter_id INTEGER,
+                next_striker_id INTEGER,
+                shot_type TEXT,
+                shot_zone TEXT,
+                drop_catch INTEGER DEFAULT 0,
+                misfield INTEGER DEFAULT 0,
+                fielding_player_id INTEGER,
+                FOREIGN KEY (innings_id) REFERENCES innings(id) ON DELETE CASCADE,
+                FOREIGN KEY (striker_id) REFERENCES players(id),
+                FOREIGN KEY (non_striker_id) REFERENCES players(id),
+                FOREIGN KEY (bowler_id) REFERENCES players(id),
+                FOREIGN KEY (player_dismissed_id) REFERENCES players(id),
+                FOREIGN KEY (fielder_id) REFERENCES players(id),
+                FOREIGN KEY (new_batter_id) REFERENCES players(id),
+                FOREIGN KEY (next_striker_id) REFERENCES players(id),
+                FOREIGN KEY (fielding_player_id) REFERENCES players(id)
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS admin_users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,

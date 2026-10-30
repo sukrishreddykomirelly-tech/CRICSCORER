@@ -1,4 +1,5 @@
 # database.py
+import os
 from postgres_db import ensure_postgres_schema, get_postgres_connection
 from scoring import MatchState, InningsState
 
@@ -14,16 +15,33 @@ def get_db_connection():
     return get_postgres_connection()
 
 
-def init_db():
-    """Ensure the persistent database schema exists."""
+def init_db(force_restore=False):
+    """Ensure the persistent database schema exists and restore Firestore data if empty."""
     try:
         conn = get_db_connection()
         try:
             ensure_postgres_schema(conn)
+            if not os.environ.get("TESTING") and not os.environ.get("PYTEST_CURRENT_TEST"):
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM matches")
+                matches_count = cursor.fetchone()[0]
+                if matches_count == 0 or force_restore:
+                    try:
+                        from firestore_sync import is_sync_enabled, restore_firestore_to_sqlite
+                        if is_sync_enabled():
+                            restore_firestore_to_sqlite(conn)
+                    except Exception as sync_err:
+                        print(f"Notice: Firestore restore during init_db: {sync_err}")
         finally:
             conn.close()
     except Exception as e:
         print(f"Notice: init_db encountered: {e}")
+
+
+def restore_firestore_data():
+    """Manually restore all collections from Firestore."""
+    from firestore_sync import restore_firestore_to_sqlite
+    return restore_firestore_to_sqlite()
 
 
 def seed_db():
