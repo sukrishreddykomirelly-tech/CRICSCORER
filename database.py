@@ -118,6 +118,15 @@ def load_match_state(match_id, is_rebuilding=False):
     """
     Hydrates a MatchState object by replaying the delivery log in order.
     """
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_load_match_state
+        if is_firestore_enabled():
+            st = firestore_load_match_state(match_id, is_rebuilding=is_rebuilding)
+            if st is not None:
+                return st
+    except Exception:
+        pass
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -270,6 +279,15 @@ def save_delivery(innings_id, d):
     d contains keys: over_number, ball_of_over, delivery_count, striker_id, non_striker_id, bowler_id, 
     runs_batter, runs_extras, extra_type, is_legal, is_wicket, wicket_type, player_dismissed_id, fielder_id, commentary.
     """
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_save_delivery, _get_db
+        if is_firestore_enabled():
+            db = _get_db()
+            if db.collection("innings").document(str(innings_id)).get().exists:
+                return firestore_save_delivery(innings_id, d)
+    except Exception:
+        pass
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -308,6 +326,15 @@ def delete_last_delivery(innings_id):
     """
     Deletes the last delivery for an innings (Undo action).
     """
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_delete_last_delivery, _get_db
+        if is_firestore_enabled():
+            db = _get_db()
+            if db.collection("innings").document(str(innings_id)).get().exists:
+                return firestore_delete_last_delivery(innings_id)
+    except Exception:
+        pass
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -336,9 +363,20 @@ def rebuild_and_cache_match_state(match_id):
     Replays all deliveries for a match, then saves the precomputed totals
     (runs, wickets, balls, status, winner, margin) in the database.
     """
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_rebuild_and_cache_match_state, _get_db
+        if is_firestore_enabled():
+            db = _get_db()
+            if db.collection("matches").document(str(match_id)).get().exists:
+                return firestore_rebuild_and_cache_match_state(match_id)
+    except Exception:
+        pass
+
     match_state = load_match_state(match_id, is_rebuilding=True)
     if not match_state:
         return
+
+
         
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -481,6 +519,13 @@ def get_recent_matches(limit=5):
     return [_map_match_team_scores(dict(row)) for row in rows]
 
 def get_live_matches():
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_get_live_matches
+        if is_firestore_enabled():
+            return firestore_get_live_matches()
+    except Exception:
+        pass
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""

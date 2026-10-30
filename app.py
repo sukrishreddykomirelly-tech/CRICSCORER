@@ -85,42 +85,60 @@ def get_match_json_state(match_id):
     if not match_state:
         return None
         
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Get team names & logos
-    cursor.execute("SELECT name, logo_url FROM teams WHERE id = ?", (match_state.team1_id,))
-    t1_row = cursor.fetchone()
-    cursor.execute("SELECT name, logo_url FROM teams WHERE id = ?", (match_state.team2_id,))
-    t2_row = cursor.fetchone()
-    
-    team1_name = t1_row['name'] if t1_row else "Team 1"
-    team1_logo = t1_row['logo_url'] if t1_row else ""
-    team2_name = t2_row['name'] if t2_row else "Team 2"
-    team2_logo = t2_row['logo_url'] if t2_row else ""
-    
-    # Get match details
-    cursor.execute("SELECT ground, match_date, match_time, tournament_id FROM matches WHERE id = ?", (match_id,))
-    m_details = cursor.fetchone()
-    
-    # Retrieve Squad Rosters
-    cursor.execute("""
-        SELECT mp.team_id, mp.player_id, p.name 
-        FROM match_players mp
-        JOIN players p ON mp.player_id = p.id
-        WHERE mp.match_id = ?
-    """, (match_id,))
-    mp_rows = cursor.fetchall()
-    team1_squad = []
-    team2_squad = []
-    for row in mp_rows:
-        p_dict = {"id": row['player_id'], "name": row['name']}
-        if row['team_id'] == match_state.team1_id:
-            team1_squad.append(p_dict)
-        else:
-            team2_squad.append(p_dict)
-            
-    conn.close()
+    meta = None
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_get_match_metadata
+        if is_firestore_enabled():
+            meta = firestore_get_match_metadata(match_id)
+    except Exception:
+        meta = None
+
+    if meta:
+        team1_name = meta['team1_name']
+        team1_logo = meta['team1_logo']
+        team2_name = meta['team2_name']
+        team2_logo = meta['team2_logo']
+        m_details = meta['m_details']
+        team1_squad = meta['team1_squad']
+        team2_squad = meta['team2_squad']
+    else:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get team names & logos
+        cursor.execute("SELECT name, logo_url FROM teams WHERE id = ?", (match_state.team1_id,))
+        t1_row = cursor.fetchone()
+        cursor.execute("SELECT name, logo_url FROM teams WHERE id = ?", (match_state.team2_id,))
+        t2_row = cursor.fetchone()
+        
+        team1_name = t1_row['name'] if t1_row else "Team 1"
+        team1_logo = t1_row['logo_url'] if t1_row else ""
+        team2_name = t2_row['name'] if t2_row else "Team 2"
+        team2_logo = t2_row['logo_url'] if t2_row else ""
+        
+        # Get match details
+        cursor.execute("SELECT ground, match_date, match_time, tournament_id FROM matches WHERE id = ?", (match_id,))
+        m_details = cursor.fetchone()
+        
+        # Retrieve Squad Rosters
+        cursor.execute("""
+            SELECT mp.team_id, mp.player_id, p.name 
+            FROM match_players mp
+            JOIN players p ON mp.player_id = p.id
+            WHERE mp.match_id = ?
+        """, (match_id,))
+        mp_rows = cursor.fetchall()
+        team1_squad = []
+        team2_squad = []
+        for row in mp_rows:
+            p_dict = {"id": row['player_id'], "name": row['name']}
+            if row['team_id'] == match_state.team1_id:
+                team1_squad.append(p_dict)
+            else:
+                team2_squad.append(p_dict)
+                
+        conn.close()
+
     
     innings_list = []
     for inn in match_state.innings:
@@ -625,6 +643,50 @@ def match_create():
             
         conn.commit()
         conn.close()
+
+        try:
+            from firestore_scoring import is_firestore_enabled, _get_db
+            if is_firestore_enabled():
+                db = _get_db()
+                doc = {
+                    "id": match_id,
+                    "tournament_id": tournament_id,
+                    "team1_id": team1_id,
+                    "team2_id": team2_id,
+                    "match_format": match_format,
+                    "overs_limit": overs_limit,
+                    "ground": ground,
+                    "match_date": match_date,
+                    "match_time": match_time,
+                    "status": "scheduled",
+                    "single_batting": single_batting,
+                    "toss_winner_id": None,
+                    "toss_decision": None,
+                    "winner_id": None,
+                    "result_margin": None,
+                    "current_innings_id": None,
+                    "is_super_over": 0
+                }
+                db.collection("matches").document(str(match_id)).set(doc)
+                for order, p_id in enumerate(team1_xi, start=1):
+                    key = f"{match_id}_{team1_id}_{p_id}"
+                    db.collection("match_players").document(key).set({
+                        "match_id": match_id,
+                        "team_id": team1_id,
+                        "player_id": int(p_id),
+                        "batting_order": order
+                    })
+                for order, p_id in enumerate(team2_xi, start=1):
+                    key = f"{match_id}_{team2_id}_{p_id}"
+                    db.collection("match_players").document(key).set({
+                        "match_id": match_id,
+                        "team_id": team2_id,
+                        "player_id": int(p_id),
+                        "batting_order": order
+                    })
+        except Exception:
+            pass
+
         return redirect(url_for('match_toss', match_id=match_id))
         
     cursor.execute("SELECT id, name FROM teams ORDER BY name ASC")
@@ -655,6 +717,13 @@ def match_toss(match_id):
         toss_winner_id = int(request.form['toss_winner'])
         toss_decision = request.form['toss_decision']
         
+        try:
+            from firestore_scoring import is_firestore_enabled, firestore_set_toss
+            if is_firestore_enabled():
+                firestore_set_toss(match_id, toss_winner_id, toss_decision)
+        except Exception:
+            pass
+
         cursor.execute("""
             UPDATE matches 
             SET toss_winner_id = ?, toss_decision = ?, status = 'toss_done'
@@ -663,6 +732,7 @@ def match_toss(match_id):
         conn.commit()
         conn.close()
         return redirect(url_for('match_setup_crease', match_id=match_id))
+
         
     conn.close()
     return render_template(
@@ -756,8 +826,39 @@ def match_setup_crease(match_id):
         
         conn.commit()
         conn.close()
+
+        try:
+            from firestore_scoring import is_firestore_enabled, _get_db
+            if is_firestore_enabled():
+                db = _get_db()
+                inn_data = {
+                    "id": innings_id,
+                    "match_id": int(match_id),
+                    "innings_number": 1,
+                    "batting_team_id": int(bat_team),
+                    "bowling_team_id": int(bowl_team),
+                    "status": "ongoing",
+                    "total_runs": 0,
+                    "total_wickets": 0,
+                    "balls_bowled": 0,
+                    "wides": 0,
+                    "noballs": 0,
+                    "byes": 0,
+                    "legbyes": 0,
+                    "current_striker_id": int(striker_id),
+                    "current_non_striker_id": int(non_striker_id),
+                    "current_bowler_id": int(bowler_id)
+                }
+                db.collection("innings").document(str(innings_id)).set(inn_data)
+                db.collection("matches").document(str(match_id)).update({
+                    "status": "live",
+                    "current_innings_id": innings_id
+                })
+        except Exception:
+            pass
         
         return redirect(url_for('match_scoring_console', match_id=match_id))
+
         
     conn.close()
     return render_template("match_setup_crease.html", match_id=match_id, batters=batters, bowlers=bowlers)
@@ -765,6 +866,20 @@ def match_setup_crease(match_id):
 @app.route('/match/<int:match_id>/score')
 def match_scoring_console(match_id):
     # dedicated scoring console
+    try:
+        from firestore_scoring import is_firestore_enabled, _get_db
+        if is_firestore_enabled():
+            db = _get_db()
+            doc = db.collection("matches").document(str(match_id)).get()
+            if not doc.exists:
+                return "Match not found", 404
+            row = doc.to_dict() or {}
+            if row.get('status') == 'completed':
+                return redirect(url_for('match_view', match_id=match_id))
+            return render_template("scoring.html", match_id=match_id, innings_id=row.get('current_innings_id'))
+    except Exception:
+        pass
+
     # Fetch match details
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -849,12 +964,22 @@ def api_change_bowler(match_id):
     innings_id = req['innings_id']
     bowler_id = req['bowler_id']
     
-    # Set the bowler in the innings cache
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE innings SET current_bowler_id = ? WHERE id = ?", (bowler_id, innings_id))
-    conn.commit()
-    conn.close()
+    handled = False
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_change_bowler
+        if is_firestore_enabled():
+            firestore_change_bowler(match_id, innings_id, bowler_id)
+            handled = True
+    except Exception:
+        pass
+
+    if not handled:
+        # Set the bowler in the innings cache
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE innings SET current_bowler_id = ? WHERE id = ?", (bowler_id, innings_id))
+        conn.commit()
+        conn.close()
     
     notify_match_update(match_id)
     return jsonify({"success": True})
@@ -866,14 +991,24 @@ def api_change_batsman(match_id):
     striker_id = req.get('striker_id')
     non_striker_id = req.get('non_striker_id')
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    if striker_id:
-        cursor.execute("UPDATE innings SET current_striker_id = ? WHERE id = ?", (striker_id, innings_id))
-    if non_striker_id:
-        cursor.execute("UPDATE innings SET current_non_striker_id = ? WHERE id = ?", (non_striker_id, innings_id))
-    conn.commit()
-    conn.close()
+    handled = False
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_change_batsman
+        if is_firestore_enabled():
+            firestore_change_batsman(match_id, innings_id, striker_id, non_striker_id)
+            handled = True
+    except Exception:
+        pass
+
+    if not handled:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if striker_id:
+            cursor.execute("UPDATE innings SET current_striker_id = ? WHERE id = ?", (striker_id, innings_id))
+        if non_striker_id:
+            cursor.execute("UPDATE innings SET current_non_striker_id = ? WHERE id = ?", (non_striker_id, innings_id))
+        conn.commit()
+        conn.close()
     
     notify_match_update(match_id)
     return jsonify({"success": True})
@@ -885,6 +1020,15 @@ def api_start_second_innings(match_id):
     non_striker_id = req['non_striker_id']
     bowler_id = req['bowler_id']
     
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_start_second_innings
+        if is_firestore_enabled():
+            innings_id = firestore_start_second_innings(match_id, striker_id, non_striker_id, bowler_id)
+            notify_match_update(match_id)
+            return jsonify({"success": True, "innings_id": innings_id})
+    except Exception:
+        pass
+
     # Get match details to identify team IDs
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -922,6 +1066,18 @@ def api_substitute_player(match_id):
     incoming_id = int(req['incoming_id'])
     team_id = int(req['team_id'])
     
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_substitute_player
+        if is_firestore_enabled():
+            ms = database.load_match_state(match_id)
+            curr_inn = ms.get_current_innings() if ms else None
+            innings_id = curr_inn.innings_id if curr_inn else 0
+            firestore_substitute_player(match_id, innings_id, outgoing_id, incoming_id, team_id)
+            notify_match_update(match_id)
+            return jsonify({"success": True})
+    except Exception:
+        pass
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -992,6 +1148,15 @@ def api_end_match(match_id):
     outcome_type = req.get('outcome_type', 'completed')
     custom_winner_id = req.get('winner_id')
     custom_margin = req.get('result_margin', '').strip()
+
+    try:
+        from firestore_scoring import is_firestore_enabled, firestore_end_match
+        if is_firestore_enabled():
+            res = firestore_end_match(match_id, outcome_type, custom_winner_id, custom_margin)
+            notify_match_update(match_id)
+            return jsonify(res)
+    except Exception:
+        pass
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1081,7 +1246,15 @@ def custom_load_match_state(match_id, is_rebuilding=False):
     if not match_state or is_rebuilding:
         return match_state
         
+    try:
+        from firestore_scoring import is_firestore_enabled
+        if is_firestore_enabled():
+            return match_state
+    except Exception:
+        pass
+
     conn = get_db_connection()
+
     cursor = conn.cursor()
     
     # Sync active crease from database cache

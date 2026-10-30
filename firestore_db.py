@@ -17,6 +17,23 @@ from firebase_admin import credentials, firestore
 
 FIREBASE_APP_NAME = "cricscorer"
 SERVICE_ACCOUNT_ENV = "FIREBASE_SERVICE_ACCOUNT_JSON"
+
+# Auto-load .env file if present
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.isfile(_env_path):
+    try:
+        with open(_env_path, "r", encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    _k = _k.strip()
+                    _v = _v.strip().strip("'\"")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception:
+        pass
+
 SERVICE_ACCOUNT_FIELDS = (
     "type",
     "project_id",
@@ -119,3 +136,12 @@ def get_firestore_client():
         )
 
     return firestore.client(app=firebase_app)
+
+
+def is_firestore_configured() -> bool:
+    """Check if Firestore credentials are configured and valid."""
+    try:
+        _load_service_account()
+        return True
+    except Exception:
+        return False
