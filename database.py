@@ -288,6 +288,15 @@ def load_match_state(match_id, is_rebuilding=False):
                     if inn_state.bowler_id == sub['outgoing_id']:
                         inn_state.bowler_id = sub['incoming_id']
 
+        # Crease hydration if not rebuilding (preserves manual swaps / wicket choices / selected bowler)
+        if not is_rebuilding and inn_state:
+            if inn_row['current_striker_id'] is not None:
+                inn_state.striker_id = inn_row['current_striker_id']
+            if inn_row['current_non_striker_id'] is not None:
+                inn_state.non_striker_id = inn_row['current_non_striker_id']
+            if inn_row['current_bowler_id'] is not None:
+                inn_state.bowler_id = inn_row['current_bowler_id']
+
     # Preserve explicit completed/abandoned match status and result if set
     if match_row['status'] in ('completed', 'abandoned'):
         match_state.status = match_row['status']

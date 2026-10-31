@@ -1024,22 +1024,23 @@ def api_change_bowler(match_id):
     innings_id = req['innings_id']
     bowler_id = req['bowler_id']
     
-    handled = False
+    # 1. Update Firestore if enabled
     try:
         from firestore_scoring import is_firestore_enabled, firestore_change_bowler
         if is_firestore_enabled():
             firestore_change_bowler(match_id, innings_id, bowler_id)
-            handled = True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Notice updating Firestore bowler: {e}")
 
-    if not handled:
-        # Set the bowler in the innings cache
+    # 2. Always update local database for guaranteed consistency
+    try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("UPDATE innings SET current_bowler_id = ? WHERE id = ?", (bowler_id, innings_id))
         conn.commit()
         conn.close()
+    except Exception as e:
+        print(f"Notice updating local DB bowler: {e}")
     
     notify_match_update(match_id)
     return jsonify({"success": True})
@@ -1051,16 +1052,16 @@ def api_change_batsman(match_id):
     striker_id = req.get('striker_id')
     non_striker_id = req.get('non_striker_id')
     
-    handled = False
+    # 1. Update Firestore if enabled
     try:
         from firestore_scoring import is_firestore_enabled, firestore_change_batsman
         if is_firestore_enabled():
             firestore_change_batsman(match_id, innings_id, striker_id, non_striker_id)
-            handled = True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Notice updating Firestore batsman: {e}")
 
-    if not handled:
+    # 2. Always update local database for guaranteed consistency
+    try:
         conn = get_db_connection()
         cursor = conn.cursor()
         if striker_id:
@@ -1069,6 +1070,8 @@ def api_change_batsman(match_id):
             cursor.execute("UPDATE innings SET current_non_striker_id = ? WHERE id = ?", (non_striker_id, innings_id))
         conn.commit()
         conn.close()
+    except Exception as e:
+        print(f"Notice updating local DB batsman: {e}")
     
     notify_match_update(match_id)
     return jsonify({"success": True})

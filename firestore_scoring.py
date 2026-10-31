@@ -258,11 +258,9 @@ def firestore_load_match_state(match_id: int, is_rebuilding: bool = False) -> Op
             if inn_row.get("current_non_striker_id") is not None:
                 inn_state.non_striker_id = inn_row["current_non_striker_id"]
             if inn_row.get("current_bowler_id") is not None:
-                last_bowler_id = del_list[-1].get("bowler_id") if del_list else None
-                if inn_state.balls_bowled > 0 and inn_state.balls_bowled % 6 == 0:
-                    if inn_row["current_bowler_id"] != last_bowler_id:
-                        inn_state.bowler_id = inn_row["current_bowler_id"]
-                else:
+                try:
+                    inn_state.bowler_id = int(inn_row["current_bowler_id"])
+                except (ValueError, TypeError):
                     inn_state.bowler_id = inn_row["current_bowler_id"]
 
     if match_row.get("status") in ("completed", "abandoned"):

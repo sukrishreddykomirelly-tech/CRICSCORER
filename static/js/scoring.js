@@ -723,6 +723,11 @@ function renderUI() {
     const inn = getActiveInnings();
     if (!inn) return;
 
+    if (inn.status === "completed" && matchState.current_innings_idx === 1) {
+        renderMatchCompleted();
+        return;
+    }
+
     // Track transitions to show career statistics popup for new batsmen/bowlers
     const prevBatsmen = [];
     if (currentStrikerId) prevBatsmen.push(currentStrikerId);
@@ -846,7 +851,9 @@ function renderUI() {
     }
 
     // 5. Render Bowler
-    if (inn.bowler) {
+    if (inn.status === "completed") {
+        scoreBowlerRow.style.display = "none";
+    } else if (inn.bowler) {
         scoreBowlerRow.style.display = "flex";
         scoreBowlerName.innerText = inn.bowler.name;
         scoreBowlerOvers.innerText = inn.bowler.overs;
