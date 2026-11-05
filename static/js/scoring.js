@@ -909,19 +909,26 @@ function renderInningsTransition() {
     inningsTransitionContainer.style.display = "block";
     
     // Fill selects
-    // Striker & Non-Striker must be filled with Team 2 roster (since Innings 2 batting team is Innings 1 bowling team)
-    const t2_squad = inn.bowling_team_id === matchState.team1_id ? matchState.team1_squad : matchState.team2_squad;
-    const t1_squad = inn.batting_team_id === matchState.team1_id ? matchState.team1_squad : matchState.team2_squad;
+    // Innings 2 BATTING team is Innings 1 BOWLING team!
+    // Convert IDs to numbers for safe matching
+    const inn1BowlingTeamId = Number(inn.bowling_team_id);
+    const inn1BattingTeamId = Number(inn.batting_team_id);
+    const team1Id = Number(matchState.team1_id);
+    
+    // Squad that will BAT in Innings 2 (the team that bowled in Innings 1)
+    const inn2BattingSquad = (inn1BowlingTeamId === team1Id) ? matchState.team1_squad : matchState.team2_squad;
+    // Squad that will BOWL in Innings 2 (the team that batted in Innings 1)
+    const inn2BowlingSquad = (inn1BattingTeamId === team1Id) ? matchState.team1_squad : matchState.team2_squad;
     
     let batterHtml = `<option value="">Select batter...</option>`;
-    t2_squad.forEach(p => {
+    (inn2BattingSquad || []).forEach(p => {
         batterHtml += `<option value="${p.id}">${p.name}</option>`;
     });
     inn2StrikerSelect.innerHTML = batterHtml;
     inn2NonStrikerSelect.innerHTML = batterHtml;
     
     let bowlerHtml = `<option value="">Select bowler...</option>`;
-    t1_squad.forEach(p => {
+    (inn2BowlingSquad || []).forEach(p => {
         bowlerHtml += `<option value="${p.id}">${p.name}</option>`;
     });
     inn2BowlerSelect.innerHTML = bowlerHtml;

@@ -19,9 +19,32 @@ _players_cache: Dict[str, Any] = {"data": {}, "expires": 0}
 _teams_cache: Dict[str, Any] = {"data": {}, "expires": 0}
 
 
+_FIRESTORE_QUOTA_EXCEEDED_UNTIL = 0.0
+
+
+def mark_firestore_quota_exceeded(duration_seconds: float = 300.0) -> None:
+    """Temporarily pause calling Firestore when quota (429) is exceeded."""
+    global _FIRESTORE_QUOTA_EXCEEDED_UNTIL
+    import time
+    _FIRESTORE_QUOTA_EXCEEDED_UNTIL = time.time() + duration_seconds
+
+
 def is_firestore_enabled() -> bool:
-    """Return True if Firestore credentials are configured and client is usable."""
+    """Return True if Firestore credentials are configured and quota is not exceeded."""
+    import os
+    import time
+    if not os.environ.get("TESTING") and not os.environ.get("PYTEST_CURRENT_TEST"):
+        if time.time() < _FIRESTORE_QUOTA_EXCEEDED_UNTIL:
+            return False
     return firestore_db.is_firestore_configured()
+
+
+def handle_firestore_error(err: Exception) -> None:
+    """Check if an exception is 429 Quota exceeded and back off Firestore calls."""
+    err_str = str(err)
+    if "429" in err_str or "Quota exceeded" in err_str or "ResourceExhausted" in type(err).__name__:
+        print(f"Firestore quota exceeded: {err}. Temporarily pausing Firestore calls.")
+        mark_firestore_quota_exceeded(300.0)
 
 
 def _get_db():
@@ -93,11 +116,29 @@ def get_all_players() -> Dict[int, Dict[str, Any]]:
         
     db = _get_db()
     players: Dict[int, Dict[str, Any]] = {}
-    for doc in db.collection("players").stream():
-        data = doc.to_dict() or {}
-        p_id = int(data.get("id") or doc.id)
-        data["id"] = p_id
-        players[p_id] = data
+    try:
+        for doc in db.collection("players").stream():
+            data = doc.to_dict() or {}
+            p_id = int(data.get("id") or doc.id)
+            data["id"] = p_id
+            players[p_id] = data
+    except Exception as e:
+        handle_firestore_error(e)
+
+    # Always supplement with local SQLite players so newly added players are never missed
+    try:
+        from database import get_db_connection
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT id, name, batting_style, bowling_style, is_keeper, avatar_url FROM players")
+        for row in c.fetchall():
+            row_dict = dict(row)
+            pid = int(row_dict["id"])
+            if pid not in players or not players[pid].get("name"):
+                players[pid] = row_dict
+        conn.close()
+    except Exception:
+        pass
         
     _players_cache["data"] = players
     _players_cache["expires"] = now + _CACHE_TTL
@@ -302,7 +343,18 @@ def firestore_get_match_metadata(match_id: int) -> Optional[Dict[str, Any]]:
         row = doc.to_dict()
         p_id = int(row.get("player_id", 0))
         t_id = int(row.get("team_id", 0))
-        p_name = players.get(p_id, {}).get("name", f"Player {p_id}")
+        p_name = players.get(p_id, {}).get("name")
+        if not p_name:
+            try:
+                from database import get_db_connection
+                c_conn = get_db_connection()
+                c_cur = c_conn.cursor()
+                c_cur.execute("SELECT name FROM players WHERE id = ?", (p_id,))
+                p_row = c_cur.fetchone()
+                c_conn.close()
+                p_name = p_row["name"] if p_row else f"Player {p_id}"
+            except Exception:
+                p_name = f"Player {p_id}" 
         p_dict = {"id": p_id, "name": p_name}
         if t_id == team1_id:
             team1_squad.append(p_dict)

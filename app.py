@@ -80,6 +80,25 @@ def notify_match_update(match_id):
 
 # --- MATCH JSON SERIALIZER ---
 
+def _resolve_player_name(match_state, p_id):
+    if not p_id:
+        return ""
+    name = match_state.player_names.get(p_id)
+    if name and not name.startswith(f"Player {p_id}"):
+        return name
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT name FROM players WHERE id = ?", (p_id,))
+        row = c.fetchone()
+        conn.close()
+        if row and row['name']:
+            match_state.add_player_name(p_id, row['name'])
+            return row['name']
+    except Exception:
+        pass
+    return name or f"Player {p_id}"
+
 def get_match_json_state(match_id):
     match_state = database.load_match_state(match_id)
     if not match_state:
@@ -90,7 +109,12 @@ def get_match_json_state(match_id):
         from firestore_scoring import is_firestore_enabled, firestore_get_match_metadata
         if is_firestore_enabled():
             meta = firestore_get_match_metadata(match_id)
-    except Exception:
+    except Exception as e:
+        try:
+            from firestore_scoring import handle_firestore_error
+            handle_firestore_error(e)
+        except Exception:
+            pass
         meta = None
 
     if meta:
@@ -234,7 +258,7 @@ def get_match_json_state(match_id):
         # Compile full scorecard representation
         batting_scorecard = []
         for p_id, b_data in inn.batting_scores.items():
-            p_name = match_state.player_names.get(p_id, f"Player {p_id}")
+            p_name = _resolve_player_name(match_state, p_id)
             
             # Construct dismissal text
             dismissal_str = "not out"
@@ -281,7 +305,7 @@ def get_match_json_state(match_id):
             
         bowling_scorecard = []
         for p_id, b_data in inn.bowling_scores.items():
-            p_name = match_state.player_names.get(p_id, f"Player {p_id}")
+            p_name = _resolve_player_name(match_state, p_id)
             bowling_scorecard.append({
                 "id": p_id,
                 "name": p_name,
@@ -598,6 +622,22 @@ def team_add_player(team_id):
         
     conn.commit()
     conn.close()
+
+    if name and player_id:
+        try:
+            from firestore_sync import sync_document_to_firestore
+            from firestore_scoring import _players_cache
+            _players_cache["expires"] = 0
+            sync_document_to_firestore("players", str(player_id), {
+                "id": player_id,
+                "name": name,
+                "batting_style": batting_style,
+                "bowling_style": bowling_style,
+                "is_keeper": is_keeper,
+                "avatar_url": avatar_url
+            })
+        except Exception:
+            pass
     return redirect(url_for('team_profile', team_id=team_id))
 
 # --- TOURNAMENTS ---
@@ -1031,6 +1071,11 @@ def api_change_bowler(match_id):
             firestore_change_bowler(match_id, innings_id, bowler_id)
     except Exception as e:
         print(f"Notice updating Firestore bowler: {e}")
+        try:
+            from firestore_scoring import handle_firestore_error
+            handle_firestore_error(e)
+        except Exception:
+            pass
 
     # 2. Always update local database for guaranteed consistency
     try:
@@ -1059,6 +1104,11 @@ def api_change_batsman(match_id):
             firestore_change_batsman(match_id, innings_id, striker_id, non_striker_id)
     except Exception as e:
         print(f"Notice updating Firestore batsman: {e}")
+        try:
+            from firestore_scoring import handle_firestore_error
+            handle_firestore_error(e)
+        except Exception:
+            pass
 
     # 2. Always update local database for guaranteed consistency
     try:
